@@ -25,9 +25,13 @@ matching pair and does not undo external effects.
 | Example | Plugins, each at `0.1.0` |
 | --- | --- |
 | `edge_fault_advisory` | `shell`, `openai.compatible` |
-| `ai_agent_plugins_canary` | `anthropic`, `cursor.cli`, `github.copilot.cli`, `ollama.cli`, `opencode.cli` |
+| `ai_agent_plugins_canary` | `anthropic`, `codex.cli`, `cursor.cli`, `github.copilot.cli`, `ollama.cli`, `openai.compatible`, `opencode.cli` |
 | `cursor_ticket_delivery` | `cursor.cli`, `git.cli`, `github.cli`, `jira.rest`, `openspec`, `shell` |
 | `hotfix_ticket_delivery` | `git.cli`, `github.cli`, `github.copilot.cli`, `jira.rest`, `shell` |
+
+The canary's `openai.compatible` defaults to `https://openrouter.ai/api/v1`
+and uses `OPENAI_COMPATIBLE_API_KEY`; changing providers also requires a reviewed
+network allowlist. Historical five-provider receipts do not validate this revision.
 
 Workflow YAML is authoritative. Source checks install selected contracts in fresh
 disposable homes and may build the Ollama adapter using a real Go toolchain.
@@ -41,9 +45,10 @@ need a dedicated privileged controller and root-owned source copies. macOS fixtu
 paths must be canonical and sandbox-visible, outside protected system temp roots.
 No sandbox policy changes are part of validation.
 
-The approved publication scope uses native macOS source validation and all five
-synthetic hotfix runtime regressions with these exact public dependencies.
-Earlier Linux results are historical evidence, not final-release-byte acceptance.
+The recorded publication scope used native macOS source validation and five
+synthetic hotfix runtime regressions with these exact public dependencies. Those
+results and earlier Linux results are historical evidence, not validation of the
+seven-provider target or final-release-byte acceptance.
 
 See [validation](validation.md) for current acceptance status and the complete
 command inventory. [Archived evidence](history/compatibility-before-publication.md)

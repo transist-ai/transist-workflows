@@ -42,7 +42,7 @@ from explanation_snapshot import render
 
 INVENTORY = {
     "edge_fault_advisory": "installed document review + local OpenAI transport",
-    "ai_agent_plugins_canary": "five real installed participants + fake providers",
+    "ai_agent_plugins_canary": "seven real installed participants + fake providers",
     "cursor_ticket_delivery": "full installed delivery graph + deterministic providers",
     "hotfix_ticket_delivery": "full installed hotfix graph + deterministic providers",
 }
@@ -148,7 +148,7 @@ if "--help" in args:
 if name == "opencode" and args[0] == "export":
     print("{}")
     raise SystemExit(0)
-prompt = sys.stdin.read() if name == "ollama" else " ".join(args)
+prompt = sys.stdin.read() if name in ("ollama", "codex") else " ".join(args)
 assert answer in prompt, "prompt did not reach provider"
 if name == "gh":
     assert args[:2] == ["copilot", "--"]
@@ -177,6 +177,22 @@ elif name == "cursor-agent":
 elif name == "ollama":
     assert args[:1] == ["run"]
     print(answer)
+elif name == "codex":
+    assert args[:2] == ["exec", "-"]
+    assert "--output-last-message" in args
+    Path(args[args.index("--output-last-message") + 1]).write_text(answer)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    state = Path(os.environ["CODEX_HOME"]) / "sessions" / now.strftime("%Y/%m/%d")
+    state.mkdir(parents=True, exist_ok=True)
+    events = [
+        {"type":"session_meta", "payload":{"originator":"codex_cli_rs",
+                                           "model_provider":"openai"}},
+        {"type":"turn_context", "payload":{"model":"fixture-codex"}},
+        {"type":"event_msg", "payload":{"type":"token_count", "info":{
+            "total_token_usage":{"input_tokens":3,"output_tokens":2,"total_tokens":5}}}},
+    ]
+    (state / "rollout-fixture.jsonl").write_text(
+        "\n".join(map(json.dumps, events)) + "\n")
 else:
     raise AssertionError("unexpected provider executable")
 """
@@ -815,7 +831,7 @@ def edge(binary: Path, plugins: Path, base: Path) -> None:
 
 
 def canary(binary: Path, plugins: Path, base: Path) -> None:
-    """Dispatch all five real installed participants with fake CLI/HTTP boundaries."""
+    """Dispatch seven real installed participants with fake CLI/HTTP boundaries."""
     from installed_delivery import DeliveryDriver
 
     workflow = ROOT / "examples/ai_agent_plugins_canary/workflow.yaml"
@@ -824,17 +840,20 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
     try:
         fake = driver.root / "bin"
         fake.mkdir()
-        for name in ("gh", "copilot", "opencode", "cursor-agent", "ollama"):
+        for name in ("gh", "copilot", "opencode", "cursor-agent", "ollama", "codex"):
             path = fake / name
             path.write_text(f"#!{fixture_python()}\n" + PROVIDER)
             path.chmod(0o755)
         driver.env["PATH"] = str(fake) + os.pathsep + driver.env["PATH"]
         driver.env["CURSOR_AGENT_PATH"] = str(fake / "cursor-agent")
+        codex_home = driver.root / "codex-home"
+        codex_home.mkdir()
+        driver.env["CODEX_HOME"] = str(codex_home)
         config = driver.home / "config.yaml"
         meta = yaml.safe_load(config.read_text())
         meta["policy"]["child_env"] = {
             "inherit": False,
-            "allowlist": ["PATH", "CURSOR_AGENT_PATH"],
+            "allowlist": ["PATH", "CURSOR_AGENT_PATH", "CODEX_HOME"],
         }
         config.write_text(yaml.safe_dump(meta))
         driver.install_plugins(workflow)
@@ -842,13 +861,21 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
         shutil.copyfile(workflow.parent / "prompt.md", driver.source / "prompt.md")
         with provider() as server, driver.peers([server]):
             flow = copy.deepcopy(original)
-            # Fake CLI tools need no egress. Only native Anthropic uses local HTTP.
+            # Fake CLI tools need no egress; HTTP participants use only this listener.
             for step in flow["steps"]:
                 step["network"] = {"mode": "none"}
-            flow["steps"][-1]["network"] = local_network(server.server_port)
-            flow["steps"][-1]["with"][
-                "base_url"
-            ] = f"http://127.0.0.1:{server.server_port}"
+            routes = {
+                "anthropic_canary": ("/v1/messages", "fixture", ""),
+                "openai_compatible_canary": ("/v1/chat/completions", "fixture", "/v1"),
+            }
+            for step in flow["steps"]:
+                if step["id"] == "codex_canary":
+                    step["filesystem_policy"] = {"write_allow_paths": [str(codex_home)]}
+                if step["id"] in routes:
+                    step["network"] = local_network(server.server_port)
+                    step["with"]["base_url"] = (
+                        f"http://127.0.0.1:{server.server_port}" + routes[step["id"]][2]
+                    )
             reference = driver.install_flow(flow, "canary_fixture")
             inputs = {
                 "repo_path": str(driver.workspace),
@@ -860,11 +887,14 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
                         "ollama",
                         "cursor",
                         "anthropic",
+                        "codex",
+                        "openai_compatible",
                     )
                 },
             }
             # Two fresh runs prove invocation-local history remains usable repeatedly.
             for number in range(2):
+                before = len(server.requests)
                 state = driver.start(reference, f"canary_{number}", inputs)
                 require(
                     state["status"] == "success",
@@ -882,7 +912,7 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
                         result["output"]["response_text"].strip() == ANSWER,
                         "canary provider returned unexpected content",
                     )
-                    if step["id"] != "anthropic_canary":
+                    if step["id"] not in routes:
                         require(
                             payload["max_prompt_bytes"] == 98304,
                             "prompt budget changed",
@@ -907,16 +937,31 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
                             result.get("usage", {}).get("total_tokens") == 5,
                             "provider usage lost",
                         )
+                requests = server.requests[before:]
+                require(len(requests) == len(routes), "wrong HTTP provider call count")
+                for step_id, (path, model, suffix) in routes.items():
+                    matches = [
+                        request for request in requests if request["path"] == path
+                    ]
+                    require(len(matches) == 1, "unexpected HTTP provider route")
+                    body = matches[0]["body"]
+                    payload = state["steps"][step_id]["last_request"]["input"]
+                    require(
+                        payload["base_url"]
+                        == f"http://127.0.0.1:{server.server_port}{suffix}"
+                        and payload["model"] == model
+                        and body["model"] == model,
+                        "HTTP provider model or base URL changed",
+                    )
+                    require(
+                        payload["max_tokens"] == 64 and body["max_tokens"] == 64,
+                        "HTTP provider output budget changed",
+                    )
                 print(
                     f"PASS canary run {number}: "
-                    "five participants, compact output/usage",
+                    "seven participants, compact output/usage",
                     flush=True,
                 )
-            require(len(server.requests) == 2, "wrong native provider call count")
-            require(
-                all(request["path"] == "/v1/messages" for request in server.requests),
-                "unexpected native Anthropic transport destination",
-            )
             require(
                 not list(driver.workspace.iterdir()),
                 "canary wrote operational workspace data",

@@ -1,6 +1,6 @@
 schema: transist.flow.v1
 id: ai_agent_plugins_canary
-version: 0.1.0
+version: 0.1.1
 plugins:
   anthropic: 0.1.0
   codex.cli: 0.1.0

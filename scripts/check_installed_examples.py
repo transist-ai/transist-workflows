@@ -522,7 +522,7 @@ class Driver:
         path.write_text(yaml.safe_dump(flow, sort_keys=False))
         self.cli("workflows", "check", "--path", str(path))
         self.cli("workflows", "install", "--path", str(path), "--approve")
-        return name + "@0.1.0"
+        return f"{name}@{flow['version']}"
 
     def explanation(self, workflow: Path) -> None:
         """Check the portable snapshot against two real deterministic CLI reports."""

@@ -26,10 +26,11 @@ from check_public_snapshot import EXAMPLES, regular_file
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = "0.1.1"
-CATALOG_VERSION = "0.1.0"
 SEMVER = re.compile(
-    r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)"
-    r"(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?"
+    r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+    r"(?:-(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
 )
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 DEFERRED_CODES = {
@@ -203,11 +204,11 @@ def inspect_graph(workflow: Path) -> tuple[dict[str, Any], dict[str, str], list[
         if identity in identities:
             raise CheckError("duplicate workflow/module identity")
         identities.add(identity)
-        if not isinstance(doc.get("version"), str) or not doc["version"]:
-            raise CheckError("missing workflow/module version")
-        if doc["version"] != CATALOG_VERSION:
+        if not isinstance(doc.get("version"), str) or not SEMVER.fullmatch(
+            doc["version"]
+        ):
             kind = "workflow" if is_root else "module"
-            raise CheckError(f"{kind} version must be {CATALOG_VERSION}")
+            raise CheckError(f"{kind} version must be exact SemVer")
         if not isinstance(doc.get("steps"), list):
             raise CheckError("workflow/module steps must be a list")
         if not isinstance(doc.get("inputs", {}), dict):
@@ -220,11 +221,9 @@ def inspect_graph(workflow: Path) -> tuple[dict[str, Any], dict[str, str], list[
                 not isinstance(plugin, str)
                 or not IDENTIFIER.fullmatch(plugin)
                 or not isinstance(version, str)
-                or version != CATALOG_VERSION
+                or not SEMVER.fullmatch(version)
             ):
-                raise CheckError(
-                    f"plugin pins require safe IDs and version {CATALOG_VERSION}"
-                )
+                raise CheckError("plugin pins require safe IDs and exact SemVer")
             if plugin in pins and pins[plugin] != version:
                 raise CheckError("conflicting plugin version pins")
             pins[plugin] = version
@@ -386,8 +385,8 @@ def plugin_manifests(
     """Select only exact public plugin packages and check their action metadata."""
     manifests = []
     for plugin, version in sorted(pins.items()):
-        if version != CATALOG_VERSION:
-            raise CheckError(f"plugin version must be {CATALOG_VERSION}")
+        if not isinstance(version, str) or not SEMVER.fullmatch(version):
+            raise CheckError("plugin version must be exact SemVer")
         path = contained_file(checkout, f"plugins/{plugin}/plugin.yaml")
         manifest = load_yaml(path)
         if (

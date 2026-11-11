@@ -40,27 +40,26 @@ installed-workflow readiness probes, or execution commands. Source files remain
 read-only; only newly created disposable directories are removed on exit.
 Action schemas may use transitive, selected, contained local references; external
 schema resolution is refused before installation to keep validation offline.
-Authored catalog root releases, module releases and every plugin pin must be
-`0.1.0`; numbered `vN` releases and other SemVer releases are rejected. Schema
-identifiers remain `transist.flow.v1` and `transist.module.v1`. Existing immutable
-installations and generated packages are separate bytes; validate this reset in
-fresh disposable homes rather than replacing installed same-version payloads.
+The initial catalog baseline uses `0.1.0`. After publication, workflow and module
+releases can advance independently using SemVer, including prerelease and build
+metadata; root plugin pins must be exact SemVer identities, not ranges or floating
+references. Published versioned payloads are immutable: changed bytes require a
+new version and, for signed packages, a new signature. Validate new packages in
+fresh disposable homes and retain prior bundles and homes for recovery; never
+replace an installed payload. Schema identifiers remain `transist.flow.v1` and
+`transist.module.v1`.
+
+The example checker validates exact SemVer identities and requires selected plugin
+manifests to match their pins. Validation of a later release requires its exact
+dependencies and fresh evidence; a rejection is not a passing check.
 Cleanup actions/assets and module-call step IDs participate in graph checks.
 Use repeatable `--example <name>` to check a subset; missing selected roots still
 fail. Without that option all four named roots are required.
 
-Only synthetic negative/version-policy fixtures are exempt from the authored
-release policy. They must still be rejected by the validator, with no bypass:
-
-- `tests/test_version_policy.py`: `REJECTED_RELEASES` and invalid metadata fixtures.
-- `tests/test_check_examples.py`: `test_root_and_module_releases_are_fixed`,
-  `test_inexact_pin_missing_pin_and_duplicate_steps`,
-  `test_duplicate_module_identity_and_conflicting_pin` and
-  `test_plugin_exact_identity_action_and_schema` deliberately use invalid releases.
-- `tests/test_edge_runner.py`: `test_manifest_parser` rejects non-`0.1.0` releases
-  at the advisory launcher's dependency boundary.
-- The third-party `v1.0.0` requirement in the negative stdlib-only Ollama build
-  fixture is not a Transist catalog release or pin.
+Synthetic negative/version-policy fixtures exercise invalid metadata and inexact
+pins; the third-party `v1.0.0` requirement in the negative stdlib-only Ollama build
+fixture is not a Transist catalog release or pin. The edge advisory launcher's
+dependency boundary remains tied to its selected `shell@0.1.0` package.
 
 Run the focused release-policy checks with:
 
@@ -305,11 +304,13 @@ Native provider and shell actions receive no unsupported CLI fields. In
 particular, the edge advisory uses bounded `shell/read_file` and a managed
 diagnostic document; no stdout copy is its model input.
 
-All four maintained examples and all three authoring fixtures pass the current
-unfiltered installed fake-provider gate on native Linux and macOS; see
-[historical Step 12](../docs/history/revised-workflow-authoring-step-12.md). Source/helper/graph checks
-alone do not imply runtime success. The older selected-example results remain
-recorded in Steps 9–11.
+Historical Step 12 records an unfiltered installed fake-provider gate for four
+examples and three authoring fixtures on native Linux and macOS; see
+[historical Step 12](../docs/history/revised-workflow-authoring-step-12.md).
+Those results apply only to the tested bytes and dependency tuple, not later
+releases. Source/helper/graph checks alone do not imply runtime success. The older
+selected-example results remain recorded in Steps 9–11; current acceptance is in
+[validation](../docs/validation.md).
 
 Delivery-owned `check_working_files.py` guards reject tracked or otherwise
 stageable legacy operational files before generation and commits. Managed

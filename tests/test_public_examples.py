@@ -25,8 +25,9 @@ class PublicExamplesTests(unittest.TestCase):
                 self.assertEqual(definition["id"], name)
                 self.assertTrue(pins)
                 self.assertTrue(actions)
-                self.assertEqual(definition["version"], "0.1.0")
-                self.assertEqual(set(pins.values()), {"0.1.0"})
+                self.assertIsNotNone(checker.SEMVER.fullmatch(definition["version"]))
+                for version in pins.values():
+                    self.assertIsNotNone(checker.SEMVER.fullmatch(version))
                 self.assertTrue((example / "README.md").is_file())
                 sample = checker.load_yaml(example / "inputs.example.yaml")
                 declared = definition.get("inputs", {})
@@ -42,7 +43,7 @@ class PublicExamplesTests(unittest.TestCase):
         """All seven canary participants request the same fixed text explicitly."""
         example = ROOT / "examples" / "ai_agent_plugins_canary"
         document = yaml.safe_load((example / "workflow.yaml").read_text())
-        self.assertEqual(document["version"], "0.1.0")
+        self.assertEqual(document["version"], "0.1.1")
         self.assertEqual(document["plugins"]["cursor.cli"], "0.1.0")
         self.assertEqual(document["network"]["mode"], "none")
         self.assertEqual(document["workspace"]["access"], "read_only")
@@ -436,7 +437,9 @@ class PublicExamplesTests(unittest.TestCase):
                 for path in modules:
                     with self.subTest(module=path.name):
                         module = checker.load_yaml(path)
-                        self.assertEqual(module["version"], "0.1.0")
+                        self.assertIsNotNone(
+                            checker.SEMVER.fullmatch(module["version"])
+                        )
                         self.assertNotIn(
                             "artifact_path_prefix", module.get("inputs", {})
                         )
@@ -468,9 +471,11 @@ class PublicExamplesTests(unittest.TestCase):
             self.assertEqual(sample["jira_ticket_id"], "PROJ-123")
             self.assertEqual(sample["jira_site_url"], "https://example.atlassian.net")
             self.assertEqual(document["workspace"]["access"], "full")
-            self.assertEqual(document["version"], "0.1.0")
+            self.assertIsNotNone(checker.SEMVER.fullmatch(document["version"]))
             if name == "cursor_ticket_delivery":
-                self.assertEqual(document["plugins"]["cursor.cli"], "0.1.0")
+                self.assertIsNotNone(
+                    checker.SEMVER.fullmatch(document["plugins"]["cursor.cli"])
+                )
             actions = [step.get("uses") for step in document["steps"]]
             self.assertIn("process:git.cli/commit_worktree", actions)
             self.assertIn("process:git.cli/push_current_branch", actions)

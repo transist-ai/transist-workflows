@@ -54,13 +54,12 @@ for the complete contract. Operational intermediates stay in managed documents;
 source and OpenSpec deliverables stay in Git. Never add ignore rules as a storage
 workaround.
 
-All authored catalog roots, module releases and plugin pins are fixed at `0.1.0`.
-Schemas remain `transist.flow.v1` and `transist.module.v1`. These authored bytes
-are distinct from historical signed packages; historical checks/signatures do
-not validate the reset. Repeat affected checks against the coordinated plugin
-schemas and complete reviewed packaging before governed use. Use fresh disposable
-homes for validation. Never replace installed same-version payloads; preserve
-previous homes/packages for rollback.
+Workflow and module releases advance independently; plugin pins name exact SemVer
+releases. Schemas remain `transist.flow.v1` and `transist.module.v1`. Historical
+checks and signatures do not validate changed bytes. Repeat affected checks against
+the selected plugin schemas and complete reviewed packaging before governed use.
+Use fresh disposable homes for validation. Never replace published same-version
+payloads; preserve previous homes/packages for rollback.
 
 [Historical Step 12 acceptance](history/revised-workflow-authoring-step-12.md) covers real
 installed packages with fake peers on native Linux and macOS. The accepted local
@@ -77,7 +76,8 @@ dispatch a provider. Assign a distinct version when executable bytes change.
 
 ## Package outside the runtime
 
-An authorized administrator packages reviewed source on the signing machine:
+An authorized administrator packages reviewed source on the signing machine. The
+version below is an example; use the selected workflow's actual version throughout:
 
 ```sh
 transist-admin workflow package /path/to/example/workflow.yaml \

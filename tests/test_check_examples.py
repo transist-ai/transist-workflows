@@ -138,10 +138,10 @@ class ExampleCheckerTests(unittest.TestCase):
         with self.assertRaisesRegex(checker.CheckError, "contiguous"):
             checker.inspect_graph(path)
 
-    def test_root_and_module_releases_are_fixed(self) -> None:
-        """Negative version-policy fixtures are exempt from catalog release pins."""
+    def test_root_and_module_releases_are_exact_semver(self) -> None:
+        """Root and module versions must be exact SemVer strings."""
         self.assertEqual(checker.inspect_graph(self.flow())[0]["version"], "0.1.0")
-        for version in ("v1", "v2", "v12", "1.0.0", "1.0.1", "v0", "v01", "v2-extra"):
+        for version in ("v1", "v2", "v12", "v0", "v01", "v2-extra", "1.01.0"):
             with self.subTest(version=version):
                 path = self.flow()
                 path.write_text(
@@ -154,7 +154,7 @@ class ExampleCheckerTests(unittest.TestCase):
             "schema: transist.module.v1\nid: child\nversion: v2\nsteps: []\n",
         )
         path = self.flow("modules:\n  child: {path: child.yaml}\n")
-        with self.assertRaisesRegex(checker.CheckError, "module version must be 0.1.0"):
+        with self.assertRaisesRegex(checker.CheckError, "module version must be exact"):
             checker.inspect_graph(path)
 
     def test_parser_errors_are_sanitized(self) -> None:
@@ -166,7 +166,7 @@ class ExampleCheckerTests(unittest.TestCase):
 
     def test_inexact_pin_missing_pin_and_duplicate_steps(self) -> None:
         """Exempt negative pin fixtures; reject unpinned uses and duplicate steps."""
-        for replacement in ("0.x", "latest", ">=0.1.0", "0.1.1", "1.0.0", "0.1.0-beta"):
+        for replacement in ("0.x", "latest", ">=0.1.0", "0.1.0-01"):
             path = self.flow()
             path.write_text(
                 path.read_text().replace("shell: 0.1.0", f"shell: {replacement}")

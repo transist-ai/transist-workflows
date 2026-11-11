@@ -39,8 +39,9 @@ The following pins describe the current checked-in examples, not future releases
 | `hotfix_ticket_delivery` | `git.cli`, `github.cli`, `github.copilot.cli`, `jira.rest`, `shell` |
 
 The canary's `openai.compatible` defaults to `https://openrouter.ai/api/v1`
-and uses `OPENAI_COMPATIBLE_API_KEY`; changing providers also requires a reviewed
-network allowlist. Historical five-provider receipts do not validate this revision.
+and also allows `https://api.openai.com/v1`. Set `OPENAI_COMPATIBLE_API_KEY`
+for the selected provider; other hosts require a reviewed network allowlist
+change. Historical five-provider receipts do not validate this revision.
 
 Workflow YAML is authoritative. Source checks install selected contracts in fresh
 disposable homes and may build the Ollama adapter using a real Go toolchain.

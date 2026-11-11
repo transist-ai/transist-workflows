@@ -43,7 +43,7 @@ class PublicExamplesTests(unittest.TestCase):
         """All six canary participants request the same fixed text explicitly."""
         example = ROOT / "examples" / "ai_agent_plugins_canary"
         document = yaml.safe_load((example / "workflow.yaml").read_text())
-        self.assertEqual(document["version"], "0.1.2")
+        self.assertEqual(document["version"], "0.1.3")
         self.assertEqual(document["plugins"]["ollama.cli"], "0.1.1")
         self.assertEqual(document["plugins"]["cursor.cli"], "0.1.0")
         self.assertEqual(document["network"]["mode"], "none")
@@ -85,7 +85,14 @@ class PublicExamplesTests(unittest.TestCase):
         self.assertEqual(
             compatible["with"]["secret_refs"], ["OPENAI_COMPATIBLE_API_KEY"]
         )
-        self.assertEqual(compatible["network"]["allow_hosts"], ["openrouter.ai"])
+        self.assertEqual(
+            compatible["network"]["allow_hosts"], ["openrouter.ai", "api.openai.com"]
+        )
+        self.assertEqual(compatible["network"]["allow_ports"], [443])
+        self.assertTrue(compatible["network"]["tls_required"])
+        self.assertEqual(
+            compatible["with"]["base_url"], "{{inputs.openai_compatible_base_url}}"
+        )
 
     def test_validation_remediation_exits_on_pass_or_attempt_cap(self) -> None:
         """The loop consumes a named Boolean export; staged bookkeeping caps work."""

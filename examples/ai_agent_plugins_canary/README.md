@@ -9,7 +9,7 @@ cleanup, and stop if any participant fails.
 ## Generated workflow explanation
 
 The [explanation snapshot](explanation.txt) is a deterministic projection
-of `workflows explain` JSON for the current `0.1.2` workflow. The installed
+of `workflows explain` JSON for the current `0.1.3` workflow. The installed
 fixture regenerates it twice and requires exact bytes. Full raw JSON
 retains platform-specific package/contract digests; the portable snapshot displays
 authored order, limits, connections and authority without inferring prompt effects.
@@ -32,7 +32,7 @@ does not scan source or create delivery working-file guards. Validate the
 completed plugin schemas separately before treating authored graph checks as
 installed-schema compatibility.
 
-`ai_agent_plugins_canary@0.1.2` invokes six providers sequentially:
+`ai_agent_plugins_canary@0.1.3` invokes six providers sequentially:
 Copilot → OpenCode → Ollama → Cursor → Anthropic → OpenAI-compatible. Each is asked to return
 `AI agent plugin canary: OK.` One action failure stops the workflow; later
 providers are not tested. There are no retries or cleanup steps.
@@ -50,7 +50,7 @@ A successful run alone does not prove the requested exact text was returned.
 | `ollama.cli` | `0.1.1` | Its compiled Go adapter, Ollama CLI/server, an already-pulled local model |
 | `cursor.cli` | `0.1.0` | Python, Cursor Agent CLI and existing login/model access |
 | `anthropic` | `0.1.0` | Python, Anthropic Console API key, API billing and native model access |
-| `openai.compatible` | `0.1.0` | Python, OpenRouter account/model access and API key |
+| `openai.compatible` | `0.1.0` | Python, OpenRouter or OpenAI API account, model access and matching API key |
 
 Obtain exact packages from the [public plugin repository](https://github.com/transist-ai/transist-plugins).
 Manifests live under `plugins/<id>/plugin.yaml`. For actual installation, build
@@ -75,9 +75,12 @@ Configure these logical references through the runtime secret provider:
 The first reference is the public plugin's contract name, not a stored credential.
 It cannot be renamed in this example without changing that plugin contract.
 Supply values externally; never put them in inputs, assets or repository files.
-The compatible-provider default is OpenRouter. If changing its base URL, also
-review and update the step's network allowlist. Its API key is supplied under
-the logical reference `OPENAI_COMPATIBLE_API_KEY`.
+The compatible-provider default is OpenRouter (`https://openrouter.ai/api/v1`).
+For OpenAI directly, set `openai_compatible_base_url` to `https://api.openai.com/v1`
+and choose a supported OpenAI Chat Completions model. Set
+`OPENAI_COMPATIBLE_API_KEY` to the key for the selected provider. Both hosts are
+allowed for the compatible step; other providers require a reviewed allowlist
+change. The other OpenCode step continues to use OpenRouter.
 
 ## Authority and effects
 
@@ -95,7 +98,7 @@ Root networking is denied. Each action requests an exact scope:
 | Ollama | `127.0.0.1`:11434, loopback HTTP |
 | Cursor | `api2.cursor.sh`, `agentn.us.api5.cursor.sh`:443, TLS |
 | Anthropic | `api.anthropic.com`:443, TLS |
-| OpenAI-compatible | `openrouter.ai`:443, TLS |
+| OpenAI-compatible | `openrouter.ai`, `api.openai.com`:443, TLS |
 
 Redirects are disabled. These declarations are not proof of every endpoint a
 current provider CLI needs. Review additional exact endpoints rather than grant
@@ -153,10 +156,10 @@ Review and enable process secret delivery only in that evaluation home. Check
 installed readiness with the intended inputs before deciding to execute:
 
 ```sh
-"$TRANSIST_BIN" workflows check ai_agent_plugins_canary@0.1.2 --live \
+"$TRANSIST_BIN" workflows check ai_agent_plugins_canary@0.1.3 --live \
   --inputs-file /path/to/local-inputs.yaml --home "$RUN_HOME"
 # After successful readiness and explicit review of all provider effects:
-"$TRANSIST_BIN" workflows run ai_agent_plugins_canary@0.1.2 \
+"$TRANSIST_BIN" workflows run ai_agent_plugins_canary@0.1.3 \
   --inputs-file /path/to/local-inputs.yaml --home "$RUN_HOME"
 ```
 

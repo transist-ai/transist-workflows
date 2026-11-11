@@ -1,8 +1,4 @@
-"""Focused release-policy tests; invalid synthetic releases are explicit exemptions.
-
-These negative fixtures are not maintained catalog assets. The validator must
-reject them rather than provide a release-policy bypass.
-"""
+"""Exact independent SemVer policy tests using synthetic graph fixtures."""
 
 from pathlib import Path
 import sys
@@ -15,21 +11,51 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import check_examples as checker  # noqa: E402
 
-# Exempt negative/version-policy fixtures, including the preceding release policy.
-REJECTED_RELEASES = (
-    "1.0.0",
-    "v1",
-    "v2",
+VALID_RELEASES = (
     "0.0.0",
-    "0.1.1",
-    "0.2.0",
-    "0.1.0-beta.1",
-    "0.1.0+build.1",
-    ">=0.1.0",
-    "latest",
+    "1.2.3",
+    "999999999999999999999.2.3",
+    "1.0.0-alpha",
+    "1.0.0-alpha.0.1",
+    "1.0.0-01a",
+    "1.0.0--",
+    "1.0.0+001",
+    "1.0.0-rc.1+build.001-x",
+    "1.0.0+abc-def.000",
+)
+INVALID_RELEASES = (
     "",
     None,
     1,
+    True,
+    "v1.2.3",
+    "V1.2.3",
+    "1.2",
+    "1.2.3.4",
+    "01.2.3",
+    "1.02.3",
+    "1.2.03",
+    "1.2.3-01",
+    "1.2.3-a.00",
+    "1.2.3-",
+    "1.2.3+",
+    "1.2.3-.a",
+    "1.2.3-a..b",
+    "1.2.3-a.",
+    "1.2.3+.a",
+    "1.2.3+a..b",
+    "1.2.3+a.",
+    "1.2.3+a+b",
+    "1.2.3-a_b",
+    "1.2.3+build_1",
+    "1.2.3-ä",
+    "1.٢.3",
+    ">=1.2.3",
+    "^1.2.3",
+    "1.2.x",
+    "latest",
+    " 1.2.3",
+    "1.2.3\n",
 )
 
 
@@ -100,65 +126,119 @@ class VersionPolicyTests(unittest.TestCase):
         """Write synthetic metadata as YAML without modifying catalog sources."""
         path.write_text(yaml.safe_dump(document), encoding="utf-8")
 
-    def test_fixed_release_accepts_nested_modules_and_exact_dependency(self) -> None:
-        """0.1.0 graphs resolve module actions against the matching plugin payload."""
+    def test_independent_releases_and_exact_dependency(self) -> None:
+        """Root, nested modules and plugin can all use different SemVer releases."""
+        for path, version in (
+            (self.flow, "2.0.0"),
+            (self.child, "3.0.0-rc.1"),
+            (self.nested, "4.2.0+build.01"),
+        ):
+            document = checker.load_yaml(path)
+            self.write(path, {**document, "version": version})
+        for path in (self.flow, self.child):
+            document = checker.load_yaml(path)
+            self.write(path, {**document, "plugins": {"shell": "5.0.0-beta+001"}})
+        manifest = checker.load_yaml(self.plugin)
+        self.write(self.plugin, {**manifest, "version": "5.0.0-beta+001"})
         root, pins, actions = checker.inspect_graph(self.flow)
-        self.assertEqual(root["version"], "0.1.0")
-        self.assertEqual(pins, {"shell": "0.1.0"})
+        self.assertEqual(root["version"], "2.0.0")
+        self.assertEqual(pins, {"shell": "5.0.0-beta+001"})
         self.assertEqual(actions, ["process:shell/echo"])
         self.assertEqual(
             checker.plugin_manifests(self.root, pins, actions), [self.plugin]
         )
         self.assertEqual(checker.VERSION, "0.1.1")
 
-    def test_root_rejects_other_releases(self) -> None:
-        """Former policy, aliases, prereleases and malformed roots fail closed."""
-        document = checker.load_yaml(self.flow)
-        for version in REJECTED_RELEASES:
+    def test_valid_versions_in_every_position(self) -> None:
+        """Accept valid SemVer at each graph and dependency boundary."""
+        for version in VALID_RELEASES:
             with self.subTest(version=version):
-                self.write(self.flow, {**document, "version": version})
-                with self.assertRaisesRegex(checker.CheckError, "workflow.*version"):
-                    checker.inspect_graph(self.flow)
-
-    def test_declared_modules_reject_other_releases_recursively(self) -> None:
-        """Both invoked and unused nested modules follow the same release policy."""
-        for path in (self.child, self.nested):
-            document = checker.load_yaml(path)
-            for version in REJECTED_RELEASES:
-                with self.subTest(module=path.name, version=version):
+                for path in (self.flow, self.child, self.nested):
+                    document = checker.load_yaml(path)
                     self.write(path, {**document, "version": version})
-                    with self.assertRaisesRegex(checker.CheckError, "module.*version"):
-                        checker.inspect_graph(self.flow)
-            self.write(path, document)
+                    checker.inspect_graph(self.flow)
+                    self.write(path, document)
+                originals = [
+                    checker.load_yaml(path)
+                    for path in (self.flow, self.child, self.plugin)
+                ]
+                for path, document in zip((self.flow, self.child), originals):
+                    self.write(path, {**document, "plugins": {"shell": version}})
+                self.write(self.plugin, {**originals[2], "version": version})
+                _, pins, actions = checker.inspect_graph(self.flow)
+                self.assertEqual(
+                    checker.plugin_manifests(self.root, pins, actions), [self.plugin]
+                )
+                for path, document in zip(
+                    (self.flow, self.child, self.plugin), originals
+                ):
+                    self.write(path, document)
 
-    def test_root_and_module_pins_reject_other_releases(self) -> None:
-        """An exact but disallowed pin cannot enter the aggregated graph."""
-        for path in (self.flow, self.child):
-            document = checker.load_yaml(path)
-            for version in REJECTED_RELEASES:
-                with self.subTest(document=path.name, version=version):
+    def test_invalid_versions_in_every_position(self) -> None:
+        """Malformed releases fail at roots, recursive modules, pins, and manifests."""
+        for version in INVALID_RELEASES:
+            with self.subTest(version=version):
+                for path in (self.flow, self.child, self.nested):
+                    document = checker.load_yaml(path)
+                    self.write(path, {**document, "version": version})
+                    with self.assertRaisesRegex(checker.CheckError, "version"):
+                        checker.inspect_graph(self.flow)
+                    self.write(path, document)
+                for path in (self.flow, self.child):
+                    document = checker.load_yaml(path)
                     self.write(path, {**document, "plugins": {"shell": version}})
                     with self.assertRaisesRegex(checker.CheckError, "plugin pins"):
                         checker.inspect_graph(self.flow)
-            self.write(path, document)
-
-    def test_manifest_must_match_the_fixed_pin(self) -> None:
-        """A valid graph cannot resolve to old or differently versioned bytes."""
-        document = checker.load_yaml(self.plugin)
-        for version in REJECTED_RELEASES:
-            with self.subTest(version=version):
-                self.write(self.plugin, {**document, "version": version})
+                    self.write(path, document)
+                manifest = checker.load_yaml(self.plugin)
+                self.write(self.plugin, {**manifest, "version": version})
                 with self.assertRaisesRegex(checker.CheckError, "identity/version"):
                     checker.plugin_manifests(self.root, {"shell": "0.1.0"}, [])
-
-    def test_matching_nonpolicy_manifest_and_pin_are_rejected(self) -> None:
-        """Direct dependency validation cannot bypass policy with matching versions."""
-        document = checker.load_yaml(self.plugin)
-        for version in REJECTED_RELEASES:
-            with self.subTest(version=version):
-                self.write(self.plugin, {**document, "version": version})
                 with self.assertRaisesRegex(checker.CheckError, "plugin version"):
                     checker.plugin_manifests(self.root, {"shell": version}, [])
+                self.write(self.plugin, manifest)
+
+    def test_exact_pin_conflicts_and_manifest_matching(self) -> None:
+        """Distinct build metadata and prereleases are exact-pin conflicts."""
+        flow = checker.load_yaml(self.flow)
+        child = checker.load_yaml(self.child)
+        manifest = checker.load_yaml(self.plugin)
+        for first, second in (
+            ("1.0.0+one", "1.0.0+two"),
+            ("1.0.0-rc.1", "1.0.0"),
+        ):
+            with self.subTest(first=first, second=second):
+                self.write(self.flow, {**flow, "plugins": {"shell": first}})
+                self.write(self.child, {**child, "plugins": {"shell": second}})
+                with self.assertRaisesRegex(checker.CheckError, "conflicting plugin"):
+                    checker.inspect_graph(self.flow)
+                self.write(self.child, {**child, "plugins": {"shell": first}})
+                self.write(self.plugin, {**manifest, "version": second})
+                _, pins, actions = checker.inspect_graph(self.flow)
+                with self.assertRaisesRegex(checker.CheckError, "identity/version"):
+                    checker.plugin_manifests(self.root, pins, actions)
+        self.write(self.flow, {**flow, "plugins": {}})
+        self.write(self.child, child)
+        with self.assertRaisesRegex(checker.CheckError, "matching exact root"):
+            checker.inspect_graph(self.flow)
+
+    def test_distinct_plugins_have_independent_pins(self) -> None:
+        """Different plugins can use different exact versions in the same graph."""
+        flow = checker.load_yaml(self.flow)
+        self.write(
+            self.flow,
+            {**flow, "plugins": {"shell": "0.1.0", "other": "2.3.4+build"}},
+        )
+        other = self.root / "plugins" / "other" / "plugin.yaml"
+        other.parent.mkdir(parents=True)
+        other.with_name("schema.json").write_text("{}\n")
+        manifest = checker.load_yaml(self.plugin)
+        self.write(other, {**manifest, "id": "other", "version": "2.3.4+build"})
+        _, pins, actions = checker.inspect_graph(self.flow)
+        self.assertEqual(pins, {"shell": "0.1.0", "other": "2.3.4+build"})
+        self.assertEqual(
+            checker.plugin_manifests(self.root, pins, actions), [other, self.plugin]
+        )
 
     def test_schema_identifiers_are_not_release_versions(self) -> None:
         """Resetting releases cannot rename the v1 workflow/module formats."""
@@ -174,7 +254,7 @@ class VersionPolicyTests(unittest.TestCase):
             self.write(path, document)
 
     def test_maintained_catalog_releases_modules_and_pins(self) -> None:
-        """All four roots and every packaged module keep the 0.1.0/v1 distinction."""
+        """All maintained roots and modules use valid releases and v1 schemas."""
         for name in sorted(checker.EXAMPLES):
             example = ROOT / "examples" / name
             checker.inspect_graph(example / "workflow.yaml")
@@ -190,9 +270,9 @@ class VersionPolicyTests(unittest.TestCase):
                         else "transist.module.v1"
                     )
                     self.assertEqual(document["schema"], expected)
-                    self.assertEqual(document["version"], "0.1.0")
+                    self.assertIsNotNone(checker.SEMVER.fullmatch(document["version"]))
                     for version in document.get("plugins", {}).values():
-                        self.assertEqual(version, "0.1.0")
+                        self.assertIsNotNone(checker.SEMVER.fullmatch(version))
 
 
 if __name__ == "__main__":

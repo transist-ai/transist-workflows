@@ -1,5 +1,5 @@
-Workflow: ai_agent_plugins_canary@0.1.0
-Definition: d2648583d55d59f55af2a2dcddbcb880ec54fa8f1aaf135f88eeac710a8fb09d
+Workflow: ai_agent_plugins_canary@0.1.1
+Definition: 60b656ea49d517e43fffe1436a0b756f19c93f948df981210a9b322a1ba6254e
 Static explanation; authority requested, not granted; external behavior opaque.
 Pins: anthropic@0.1.0 (resolved), codex.cli@0.1.0 (resolved), cursor.cli@0.1.0 (resolved), github.copilot.cli@0.1.0 (resolved), ollama.cli@0.1.0 (resolved), openai.compatible@0.1.0 (resolved), opencode.cli@0.1.0 (resolved)
 Inputs: anthropic_model=missing, anthropic_timeout_ms=default, codex_model=missing, codex_timeout_ms=default, cursor_model=missing, cursor_timeout_ms=default, github_copilot_model=missing, github_copilot_timeout_ms=default, ignore_paths=default, ollama_model=missing, ollama_timeout_ms=default, openai_compatible_base_url=default, openai_compatible_model=missing, openai_compatible_timeout_ms=default, opencode_model=missing, opencode_timeout_ms=default, repo_path=missing

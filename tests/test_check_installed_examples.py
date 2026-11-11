@@ -566,6 +566,7 @@ class InstalledCheckerTests(unittest.TestCase):
             driver.cli = Mock()
             original = {
                 "id": "authored",
+                "version": "0.2.3",
                 "workspace": {"path": "{{inputs.repo_path}}", "access": "read_only"},
                 "network": {"mode": "none"},
                 "filesystem_policy": {"write_allow_paths": ["~/.cursor"]},
@@ -574,7 +575,9 @@ class InstalledCheckerTests(unittest.TestCase):
             before = copy.deepcopy(original)
             for platform in ("linux", "darwin"):
                 with patch.object(checker.sys, "platform", platform):
-                    driver.install_flow(original, platform)
+                    self.assertEqual(
+                        driver.install_flow(original, platform), platform + "@0.2.3"
+                    )
                 actual = checker.yaml.safe_load(
                     (driver.source / (platform + ".yaml")).read_text()
                 )

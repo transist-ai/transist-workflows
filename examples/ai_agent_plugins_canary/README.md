@@ -9,8 +9,8 @@ cleanup, and stop if any participant fails.
 ## Generated workflow explanation
 
 The [explanation snapshot](explanation.txt) is a deterministic projection
-of `workflows explain` JSON for the current workflow. The installed fixture
-regenerates it twice and requires exact bytes. Full raw JSON
+of `workflows explain` JSON for the current `0.1.1` workflow. The installed
+fixture regenerates it twice and requires exact bytes. Full raw JSON
 retains platform-specific package/contract digests; the portable snapshot displays
 authored order, limits, connections and authority without inferring prompt effects.
 For the current workflow, with its exact plugins installed in an
@@ -32,7 +32,7 @@ does not scan source or create delivery working-file guards. Validate the
 completed plugin schemas separately before treating authored graph checks as
 installed-schema compatibility.
 
-`ai_agent_plugins_canary@0.1.0` invokes seven providers sequentially:
+`ai_agent_plugins_canary@0.1.1` invokes seven providers sequentially:
 Copilot → OpenCode → Ollama → Cursor → Anthropic → Codex → OpenAI-compatible. Each is asked to return
 `AI agent plugin canary: OK.` One action failure stops the workflow; later
 providers are not tested. There are no retries or cleanup steps.
@@ -158,10 +158,10 @@ Review and enable process secret delivery only in that evaluation home. Check
 installed readiness with the intended inputs before deciding to execute:
 
 ```sh
-"$TRANSIST_BIN" workflows check ai_agent_plugins_canary@0.1.0 --live \
+"$TRANSIST_BIN" workflows check ai_agent_plugins_canary@0.1.1 --live \
   --inputs-file /path/to/local-inputs.yaml --home "$RUN_HOME"
 # After successful readiness and explicit review of all provider effects:
-"$TRANSIST_BIN" workflows run ai_agent_plugins_canary@0.1.0 \
+"$TRANSIST_BIN" workflows run ai_agent_plugins_canary@0.1.1 \
   --inputs-file /path/to/local-inputs.yaml --home "$RUN_HOME"
 ```
 

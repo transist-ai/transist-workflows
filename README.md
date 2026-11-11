@@ -61,8 +61,13 @@ the same Git workspace still require coordination**. Documents do not rollback
 Git changes or external Jira/GitHub effects. Invocation scratch (`run://`) remains
 unsuitable for cross-step storage.
 
-Authored catalog roots, module releases and plugin pins are fixed at `0.1.0`.
-Schema identifiers remain `transist.flow.v1` and `transist.module.v1`.
+The initial authored workflow/module releases and plugin pins use `0.1.0`.
+After publication, workflows and modules can release independently with SemVer,
+including prerelease and build metadata; plugin pins must specify exact SemVer
+versions. Published versioned payloads are immutable: changed bytes need a new
+version and, for signed packages, a new signature. Schema identifiers remain
+`transist.flow.v1` and `transist.module.v1`. See [scripts/README.md](scripts/README.md)
+for validation.
 The narrowed publication gate checks all four example sources on native macOS.
 Its recorded results predate the seven-provider canary target and are historical
 evidence, not validation of additional providers or current bytes.
@@ -74,7 +79,8 @@ Use fresh disposable homes; historical signed packages do not validate these byt
 
 ## Setup and compatibility
 
-The target is the published **Transist 0.1.1** release and public plugins `v0.1.0`.
+The recorded compatibility baseline is the published **Transist 0.1.1** release
+and public plugins `v0.1.0`; later independent releases require their own validation.
 Select the executable explicitly; do not assume the version on `PATH` matches.
 See [compatibility](docs/compatibility.md) for source revisions, exact plugin
 pins, build prerequisites, and the distinction between static and live checks.

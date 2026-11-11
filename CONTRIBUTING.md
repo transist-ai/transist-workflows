@@ -12,11 +12,15 @@ submission is reviewed by maintainers; acceptance is not guaranteed.
   commands run and any skipped checks in the pull request.
 - Keep prompts, helpers, skills and modules contained in their owning example.
   Modules use schema `transist.module.v1`; root plugin pins cover every reachable
-  invocation. All authored catalog roots, module releases and plugin pins use
-  `0.1.0`; the checker rejects numbered releases and other release versions.
-  Only explicitly identified negative/version-policy test fixtures are exempt
-  (see [scripts/README.md](scripts/README.md)); schema identifiers stay unchanged.
-  Do not use cross-example symlinks or traversal.
+  invocation. After publication, workflow and module releases can advance
+  independently using SemVer, including prerelease and build metadata. Plugin
+  dependencies use exact SemVer versions, not ranges or floating references;
+  pin each reachable invocation to the selected plugin release. Schema identifiers
+  remain unchanged. Published versioned payloads are immutable: release changed
+  bytes under a new version and obtain a new signature for a signed package.
+  Preserve previous bundles and homes for recovery. See
+  [scripts/README.md](scripts/README.md) for validation. Do not use cross-example
+  symlinks or traversal.
 - Keep operational data in root managed documents outside the Git workspace.
   Delivery guards still reject stageable legacy `.transist/` and interaction files
   before generation and every all-changes commit. Managed documents need no Git

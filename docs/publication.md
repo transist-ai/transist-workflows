@@ -1,6 +1,8 @@
 # Source-only publication
 
-Publish authored source with all maintained versions and pins at `0.1.0`.
+The initial publication used `0.1.0` releases and pins. Later workflow and module
+releases advance independently; plugin pins remain exact SemVer identities. Never
+replace published bytes under an existing version.
 Preserve Apache-2.0 licensing and attribution. Do not distribute publisher-signed
 workflow bundles, private inputs, generated homes, credentials or development Git
 history. Historical documents are evidence, not current acceptance receipts.

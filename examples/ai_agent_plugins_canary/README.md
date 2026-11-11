@@ -2,18 +2,19 @@
 
 ## Human request
 
-“Check each of my five model integrations in order with a fixed small prompt.
-Keep CLI output/history bounded, preserve usage and subprocess cleanup, and stop
-if any participant fails.”
+The requested scope is seven model integrations, checked in order with a fixed
+small prompt. Keep CLI output/history bounded, preserve usage and subprocess
+cleanup, and stop if any participant fails.
 
 ## Generated workflow explanation
 
-The [explanation snapshot](explanation.txt) is a deterministic projection of actual
-`workflows explain` JSON from the [current tuple](../../docs/compatibility.md).
-Installed fixtures regenerate it twice and require exact bytes. Full raw JSON
+The [explanation snapshot](explanation.txt) is a deterministic projection
+of `workflows explain` JSON for the current workflow. The installed fixture
+regenerates it twice and requires exact bytes. Full raw JSON
 retains platform-specific package/contract digests; the portable snapshot displays
 authored order, limits, connections and authority without inferring prompt effects.
-With all five exact plugins installed in an explicit authoring home:
+For the current workflow, with its exact plugins installed in an
+explicit authoring home:
 
 ```sh
 "$TRANSIST_BIN" workflows explain --path examples/ai_agent_plugins_canary/workflow.yaml \
@@ -31,8 +32,8 @@ does not scan source or create delivery working-file guards. Validate the
 completed plugin schemas separately before treating authored graph checks as
 installed-schema compatibility.
 
-`ai_agent_plugins_canary@0.1.0` invokes five providers sequentially:
-Copilot → OpenCode → Ollama → Cursor → Anthropic. Each is asked to return
+`ai_agent_plugins_canary@0.1.0` invokes seven providers sequentially:
+Copilot → OpenCode → Ollama → Cursor → Anthropic → Codex → OpenAI-compatible. Each is asked to return
 `AI agent plugin canary: OK.` One action failure stops the workflow; later
 providers are not tested. There are no retries or cleanup steps.
 
@@ -49,6 +50,8 @@ A successful run alone does not prove the requested exact text was returned.
 | `ollama.cli` | `0.1.0` | Its compiled Go adapter, Ollama CLI/server, an already-pulled local model |
 | `cursor.cli` | `0.1.0` | Python, Cursor Agent CLI and existing login/model access |
 | `anthropic` | `0.1.0` | Python, Anthropic Console API key, API billing and native model access |
+| `codex.cli` | `0.1.0` | Python, Codex CLI and authenticated provider access |
+| `openai.compatible` | `0.1.0` | Python, OpenRouter account/model access and API key |
 
 Obtain exact packages from the [public plugin repository](https://github.com/transist-ai/transist-plugins).
 Manifests live under `plugins/<id>/plugin.yaml`. For actual installation, build
@@ -57,7 +60,7 @@ a workflow execution prerequisite. A consumer subscription is not Anthropic API
 access. Provider CLI command surfaces and login lookup must be verified separately.
 
 `inputs.example.yaml` supplies schema-valid placeholders, not runnable model IDs.
-Replace all five model inputs with account-supported values, and set `repo_path`
+Replace all seven model inputs with account-supported values, and set `repo_path`
 to an existing canonical workspace. OpenCode uses `openrouter/<model-id>`;
 Ollama needs an installed local tag. Timeouts must be positive integers;
 Anthropic permits 1–120000 milliseconds. Ignore globs are not access enforcement.
@@ -68,10 +71,14 @@ Configure these logical references through the runtime secret provider:
 | --- | --- |
 | `OPENROUTER_KEY_PERSONAL` | `OPENROUTER_API_KEY` |
 | `ANTHROPIC_API_KEY` | `ANTHROPIC_API_KEY` |
+| `OPENAI_COMPATIBLE_API_KEY` | `OPENAI_COMPATIBLE_API_KEY` |
 
 The first reference is the public plugin's contract name, not a stored credential.
 It cannot be renamed in this example without changing that plugin contract.
 Supply values externally; never put them in inputs, assets or repository files.
+The compatible-provider default is OpenRouter. If changing its base URL, also
+review and update the step's network allowlist. Its API key is supplied under
+the logical reference `OPENAI_COMPATIBLE_API_KEY`.
 
 ## Authority and effects
 
@@ -89,6 +96,11 @@ Root networking is denied. Each action requests an exact scope:
 | Ollama | `127.0.0.1`:11434, loopback HTTP |
 | Cursor | `api2.cursor.sh`, `agentn.us.api5.cursor.sh`:443, TLS |
 | Anthropic | `api.anthropic.com`:443, TLS |
+| Codex | `api.openai.com`, `chatgpt.com`:443, TLS |
+| OpenAI-compatible | `openrouter.ai`:443, TLS |
+
+Codex login and state may require additional narrowly scoped filesystem access;
+verify the configured CLI's endpoints and state requirements before execution.
 
 Redirects are disabled. These declarations are not proof of every endpoint a
 current provider CLI needs. Review additional exact endpoints rather than grant
@@ -127,15 +139,16 @@ signatures for Cursor 1.0.0 and canary 1.0.0 were verified, and the signed workf
 and its five dependencies installed in a separate governed evaluation home.
 Installation created no run and does not prove readiness or invocation. Live
 secrets, models, login sessions and provider availability remain untested.
-These historical signatures do not validate current bytes. Current source checks
-and installed deterministic fixtures pass in the unfiltered
+These historical signatures do not validate current bytes. Source checks
+and installed deterministic fixtures passed in the unfiltered
 [historical Step 12 native matrix](../../docs/history/revised-workflow-authoring-step-12.md) against
-the committed, unpushed local tuple. Both installed canary runs on each OS exercise
-all five participants and check responses, supported compact/history budgets and
-usage (Ollama does not report tokens). The packages execute real handlers, parsers
-and lifecycle code; only external CLI executables and native Anthropic HTTP are
-fake. Missing tooling or fixture prerequisites fail, never skip. This is not live-provider or governed
-acceptance. See [compatibility](../../docs/compatibility.md).
+the committed, unpushed local tuple. Both installed canary runs on each OS exercised
+the then-existing five participants and checked responses, supported compact/history
+budgets and usage (Ollama does not report tokens). The packages executed real
+handlers, parsers and lifecycle code; external CLI executables and native Anthropic
+HTTP were fake. Missing tooling or fixture prerequisites fail, never skip. This is not live-provider or governed
+acceptance. They do not validate the seven-provider target or establish a new
+test pass for current bytes. See [compatibility](../../docs/compatibility.md).
 
 ## Installation and deliberate execution
 
@@ -158,11 +171,12 @@ signing keys outside runtime machines and using fresh versions for changed bytes
 
 ## Cursor lifecycle and migration
 
-The current workflow pins all five plugins at `0.1.0`. Action-bound profiles now
+The checked-in workflow pins its seven declared plugins at `0.1.0`. Action-bound profiles
 select repeated prompt/lean settings from shared immutable context values. A
 profile cannot select another action or widen authority; networks, logical secret
 references and Cursor's exact state-write request remain on explicit steps. The
-prompt, participants, order, inputs and authority are unchanged. Native Anthropic
+prompt, participants, order, inputs and authority of that five-provider revision
+were unchanged by the profile change. Native Anthropic
 keeps its `messages` contract and Ollama its supported generation contract; this
 change introduces no cross-provider managed response-file fiction or batch action.
 The plugin finishes its owned child processes and pipe readers

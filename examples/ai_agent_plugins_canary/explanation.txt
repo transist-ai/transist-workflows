@@ -1,8 +1,8 @@
 Workflow: ai_agent_plugins_canary@0.1.0
-Definition: 8f9ccb9d02c24320407d8a07b094eec0c352a3b631e4076121988db3dd5adc6d
+Definition: d2648583d55d59f55af2a2dcddbcb880ec54fa8f1aaf135f88eeac710a8fb09d
 Static explanation; authority requested, not granted; external behavior opaque.
-Pins: anthropic@0.1.0 (resolved), cursor.cli@0.1.0 (resolved), github.copilot.cli@0.1.0 (resolved), ollama.cli@0.1.0 (resolved), opencode.cli@0.1.0 (resolved)
-Inputs: anthropic_model=missing, anthropic_timeout_ms=default, cursor_model=missing, cursor_timeout_ms=default, github_copilot_model=missing, github_copilot_timeout_ms=default, ignore_paths=default, ollama_model=missing, ollama_timeout_ms=default, opencode_model=missing, opencode_timeout_ms=default, repo_path=missing
+Pins: anthropic@0.1.0 (resolved), codex.cli@0.1.0 (resolved), cursor.cli@0.1.0 (resolved), github.copilot.cli@0.1.0 (resolved), ollama.cli@0.1.0 (resolved), openai.compatible@0.1.0 (resolved), opencode.cli@0.1.0 (resolved)
+Inputs: anthropic_model=missing, anthropic_timeout_ms=default, codex_model=missing, codex_timeout_ms=default, cursor_model=missing, cursor_timeout_ms=default, github_copilot_model=missing, github_copilot_timeout_ms=default, ignore_paths=default, ollama_model=missing, ollama_timeout_ms=default, openai_compatible_base_url=default, openai_compatible_model=missing, openai_compatible_timeout_ms=default, opencode_model=missing, opencode_timeout_ms=default, repo_path=missing
 Workspace: {"access":"read_only","path":"{{inputs.repo_path}}"}
 Root network: {"max_redirects":0,"mode":"none","tls_required":false}
 Documents: {}
@@ -20,5 +20,11 @@ root/steps/cursor_canary: process:cursor.cli/exec_task_cli [opaque_external_acti
   settings={"history_mode":"invocation","max_context_file_bytes":65536,"max_prompt_bytes":98304,"output_mode":"compact","timeout_ms":180000}
 root/steps/anthropic_canary: process:anthropic/chat_complete [opaque_external_action]
   network={"allow_hosts":["api.anthropic.com"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem=null secrets=["ANTHROPIC_API_KEY"]
+  settings={"max_tokens":64,"timeout_ms":30000}
+root/steps/codex_canary: process:codex.cli/exec_task [opaque_external_action]
+  network={"allow_hosts":["api.openai.com","chatgpt.com"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem=null secrets=[]
+  settings={"history_mode":"invocation","max_context_file_bytes":65536,"max_prompt_bytes":98304,"output_mode":"compact","timeout_ms":180000}
+root/steps/openai_compatible_canary: process:openai.compatible/chat_complete [opaque_external_action]
+  network={"allow_hosts":["openrouter.ai"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem=null secrets=["OPENAI_COMPATIBLE_API_KEY"]
   settings={"max_tokens":64,"timeout_ms":30000}
 Cleanup: []

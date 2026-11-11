@@ -8,6 +8,5 @@ cursor_model: gpt-5.6-luna-low
 ollama_model: qwen3.5:4b
 anthropic_model: claude-haiku-4-5-20251001
 anthropic_timeout_ms: 30000
-codex_model: example-codex-model
 openai_compatible_base_url: https://openrouter.ai/api/v1
 openai_compatible_model: example/provider-model

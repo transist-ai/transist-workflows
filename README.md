@@ -14,7 +14,7 @@ peer helper has known Linux and macOS failures. See [validation limits](docs/val
 | Example | Demonstrates | Requirements and effects |
 | --- | --- | --- |
 | [Edge fault advisory](examples/edge_fault_advisory/README.md) | Read → managed diagnostic review → model → managed response | Shell and OpenAI-compatible plugins; sends exact reviewed bytes to OpenRouter only after approval |
-| [Agent plugin canary](examples/ai_agent_plugins_canary/README.md) | Seven model/CLI participants with action-bound setting profiles | Provider CLIs, models and authentication; external calls, local Ollama, and Cursor state writes |
+| [Agent plugin canary](examples/ai_agent_plugins_canary/README.md) | Six model/CLI participants with action-bound setting profiles | Provider CLIs, models and authentication; external calls, local Ollama, and Cursor state writes |
 | [Cursor ticket delivery](examples/cursor_ticket_delivery/README.md) | Planning, review gates, implementation, validation and PR delivery | Jira, Cursor, OpenSpec, Git and GitHub; modifies a repository, commits, pushes, merges and cleans branches |
 | [Hotfix ticket delivery](examples/hotfix_ticket_delivery/README.md) | Direct implementation and PR remediation without plan generation | Jira, Copilot, Git and GitHub; modifies a repository, commits, pushes, merges and cleans branches |
 
@@ -69,7 +69,7 @@ version and, for signed packages, a new signature. Schema identifiers remain
 `transist.flow.v1` and `transist.module.v1`. See [scripts/README.md](scripts/README.md)
 for validation.
 The narrowed publication gate checks all four example sources on native macOS.
-Its recorded results predate the seven-provider canary target and are historical
+Its recorded results predate the current canary target and are historical
 evidence, not validation of additional providers or current bytes.
 Full installed coverage of four examples and three authoring fixtures on both
 platforms remains deferred, not passed.

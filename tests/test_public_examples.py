@@ -40,10 +40,11 @@ class PublicExamplesTests(unittest.TestCase):
                 self.assertTrue(required.issubset(sample))
 
     def test_canary_prompt_and_participants(self) -> None:
-        """All seven canary participants request the same fixed text explicitly."""
+        """All six canary participants request the same fixed text explicitly."""
         example = ROOT / "examples" / "ai_agent_plugins_canary"
         document = yaml.safe_load((example / "workflow.yaml").read_text())
-        self.assertEqual(document["version"], "0.1.1")
+        self.assertEqual(document["version"], "0.1.2")
+        self.assertEqual(document["plugins"]["ollama.cli"], "0.1.1")
         self.assertEqual(document["plugins"]["cursor.cli"], "0.1.0")
         self.assertEqual(document["network"]["mode"], "none")
         self.assertEqual(document["workspace"]["access"], "read_only")
@@ -57,7 +58,6 @@ class PublicExamplesTests(unittest.TestCase):
                 "ollama_canary",
                 "cursor_canary",
                 "anthropic_canary",
-                "codex_canary",
                 "openai_compatible_canary",
             ],
         )
@@ -79,8 +79,9 @@ class PublicExamplesTests(unittest.TestCase):
                 self.assertNotEqual(effective["network"]["mode"], "any")
                 self.assertEqual(effective["network"]["max_redirects"], 0)
 
-        codex, compatible = steps[-2:]
-        self.assertEqual(codex["with"]["sandbox"], "read-only")
+        self.assertNotIn("codex.cli", document["plugins"])
+        self.assertNotIn("codex_model", document["inputs"])
+        compatible = steps[-1]
         self.assertEqual(
             compatible["with"]["secret_refs"], ["OPENAI_COMPATIBLE_API_KEY"]
         )

@@ -42,7 +42,7 @@ from explanation_snapshot import render
 
 INVENTORY = {
     "edge_fault_advisory": "installed document review + local OpenAI transport",
-    "ai_agent_plugins_canary": "seven real installed participants + fake providers",
+    "ai_agent_plugins_canary": "six real installed participants + fake providers",
     "cursor_ticket_delivery": "full installed delivery graph + deterministic providers",
     "hotfix_ticket_delivery": "full installed hotfix graph + deterministic providers",
 }
@@ -831,7 +831,7 @@ def edge(binary: Path, plugins: Path, base: Path) -> None:
 
 
 def canary(binary: Path, plugins: Path, base: Path) -> None:
-    """Dispatch seven real installed participants with fake CLI/HTTP boundaries."""
+    """Dispatch six real installed participants with fake CLI/HTTP boundaries."""
     from installed_delivery import DeliveryDriver
 
     workflow = ROOT / "examples/ai_agent_plugins_canary/workflow.yaml"
@@ -840,20 +840,17 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
     try:
         fake = driver.root / "bin"
         fake.mkdir()
-        for name in ("gh", "copilot", "opencode", "cursor-agent", "ollama", "codex"):
+        for name in ("gh", "copilot", "opencode", "cursor-agent", "ollama"):
             path = fake / name
             path.write_text(f"#!{fixture_python()}\n" + PROVIDER)
             path.chmod(0o755)
         driver.env["PATH"] = str(fake) + os.pathsep + driver.env["PATH"]
         driver.env["CURSOR_AGENT_PATH"] = str(fake / "cursor-agent")
-        codex_home = driver.root / "codex-home"
-        codex_home.mkdir()
-        driver.env["CODEX_HOME"] = str(codex_home)
         config = driver.home / "config.yaml"
         meta = yaml.safe_load(config.read_text())
         meta["policy"]["child_env"] = {
             "inherit": False,
-            "allowlist": ["PATH", "CURSOR_AGENT_PATH", "CODEX_HOME"],
+            "allowlist": ["PATH", "CURSOR_AGENT_PATH"],
         }
         config.write_text(yaml.safe_dump(meta))
         driver.install_plugins(workflow)
@@ -869,8 +866,6 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
                 "openai_compatible_canary": ("/v1/chat/completions", "fixture", "/v1"),
             }
             for step in flow["steps"]:
-                if step["id"] == "codex_canary":
-                    step["filesystem_policy"] = {"write_allow_paths": [str(codex_home)]}
                 if step["id"] in routes:
                     step["network"] = local_network(server.server_port)
                     step["with"]["base_url"] = (
@@ -887,7 +882,6 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
                         "ollama",
                         "cursor",
                         "anthropic",
-                        "codex",
                         "openai_compatible",
                     )
                 },

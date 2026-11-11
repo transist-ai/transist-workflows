@@ -207,5 +207,5 @@ steps:
       messages:
         - role: user
           content: "Reply with exactly this text, no extra commentary: AI agent plugin canary: OK."
-      max_tokens: 64
+      max_completion_tokens: 64
       timeout_ms: "{{inputs.openai_compatible_timeout_ms}}"

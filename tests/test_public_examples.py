@@ -82,6 +82,8 @@ class PublicExamplesTests(unittest.TestCase):
         self.assertNotIn("codex.cli", document["plugins"])
         self.assertNotIn("codex_model", document["inputs"])
         compatible = steps[-1]
+        self.assertEqual(compatible["with"]["max_completion_tokens"], 64)
+        self.assertNotIn("max_tokens", compatible["with"])
         self.assertEqual(
             compatible["with"]["secret_refs"], ["OPENAI_COMPATIBLE_API_KEY"]
         )
@@ -93,6 +95,14 @@ class PublicExamplesTests(unittest.TestCase):
         self.assertEqual(
             compatible["with"]["base_url"], "{{inputs.openai_compatible_base_url}}"
         )
+
+    def test_edge_completion_token_budget(self) -> None:
+        """The advisory forwards its explicit completion-token budget unchanged."""
+        flow = checker.load_yaml(ROOT / "examples/edge_fault_advisory/workflow.yaml")
+        self.assertEqual(flow["version"], "0.1.0")
+        step = next(step for step in flow["steps"] if step["id"] == "advise")
+        self.assertEqual(step["with"]["max_completion_tokens"], 512)
+        self.assertNotIn("max_tokens", step["with"])
 
     def test_validation_remediation_exits_on_pass_or_attempt_cap(self) -> None:
         """The loop consumes a named Boolean export; staged bookkeeping caps work."""

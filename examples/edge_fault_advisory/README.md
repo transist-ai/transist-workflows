@@ -42,7 +42,11 @@ not approve arbitrary workspace mutations.
 
 The answer is published as managed `response`, outside the workspace. Both
 documents are limited to 65536 bytes; the provider prompt budget is 98304 bytes,
-`max_tokens` is 512 and the timeout is 30000 ms. A provider/publication failure
+`max_completion_tokens` is 512 and the timeout is 30000 ms. Select a provider/model
+supporting that field and the patched OpenAI-compatible schema; the preceding
+published `0.1.0` plugin rejects it. Equal versions do not prove equal payloads;
+use an isolated evaluation home, not an in-place change beneath pinned runs.
+A provider/publication failure
 remains a failed run. There is no revision loop or automatic approval.
 
 ## Validation and deliberate execution

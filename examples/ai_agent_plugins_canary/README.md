@@ -9,7 +9,8 @@ cleanup, and stop if any participant fails.
 ## Generated workflow explanation
 
 The [explanation snapshot](explanation.txt) is a deterministic projection
-of `workflows explain` JSON for the current `0.1.3` workflow. The installed
+of `workflows explain` JSON for the current `0.1.3` source. Installed packages
+with the same version may contain the preceding token-limit contract. The installed
 fixture regenerates it twice and requires exact bytes. Full raw JSON
 retains platform-specific package/contract digests; the portable snapshot displays
 authored order, limits, connections and authority without inferring prompt effects.
@@ -168,6 +169,14 @@ For governed delivery follow [governed use](../../docs/governed-use.md), keeping
 signing keys outside runtime machines and using fresh versions for changed bytes.
 
 ## Cursor lifecycle and migration
+
+The OpenAI-compatible step selects `max_completion_tokens: 64`; Anthropic keeps
+`max_tokens: 64`. The former requires the patched OpenAI-compatible action schema
+and handler; the original published `openai.compatible@0.1.0` payload rejects that
+field. Equal version strings do not identify these changed bytes. Do not replace
+the plugin underneath an existing pinned run; validate and deliver an immutable
+new release or use an isolated evaluation home. Completion budgets can include
+reasoning tokens, so a 64-token budget does not guarantee visible answer text.
 
 The checked-in workflow pins `ollama.cli` at `0.1.1` and its other five plugins at
 `0.1.0`. Action-bound profiles

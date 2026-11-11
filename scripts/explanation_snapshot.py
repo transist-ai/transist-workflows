@@ -67,6 +67,7 @@ def render(report: dict) -> str:
                 "max_context_file_bytes",
                 "max_prompt_bytes",
                 "max_tokens",
+                "max_completion_tokens",
                 "timeout_ms",
             }
         }

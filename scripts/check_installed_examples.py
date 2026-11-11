@@ -947,10 +947,17 @@ def canary(binary: Path, plugins: Path, base: Path) -> None:
                         and body["model"] == model,
                         "HTTP provider model or base URL changed",
                     )
+                    token_field = (
+                        "max_completion_tokens"
+                        if step_id == "openai_compatible_canary"
+                        else "max_tokens"
+                    )
                     require(
-                        payload["max_tokens"] == 64 and body["max_tokens"] == 64,
+                        payload[token_field] == 64 and body[token_field] == 64,
                         "HTTP provider output budget changed",
                     )
+                    if step_id == "openai_compatible_canary":
+                        require("max_tokens" not in body, "legacy token field leaked")
                 print(
                     f"PASS canary run {number}: "
                     "seven participants, compact output/usage",

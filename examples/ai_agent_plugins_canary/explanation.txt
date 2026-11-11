@@ -1,5 +1,5 @@
 Workflow: ai_agent_plugins_canary@0.1.3
-Definition: e552025a4c5dd22c959529773dbe0625c509421268f112014238a4ce30a30257
+Definition: bb320c4b00a808bd1678f60a6c62b5fe24e837f3d6f3439361a6733dbbd69c51
 Static explanation; authority requested, not granted; external behavior opaque.
 Pins: anthropic@0.1.0 (resolved), cursor.cli@0.1.0 (resolved), github.copilot.cli@0.1.0 (resolved), ollama.cli@0.1.1 (resolved), openai.compatible@0.1.0 (resolved), opencode.cli@0.1.0 (resolved)
 Inputs: anthropic_model=missing, anthropic_timeout_ms=default, cursor_model=missing, cursor_timeout_ms=default, github_copilot_model=missing, github_copilot_timeout_ms=default, ignore_paths=default, ollama_model=missing, ollama_timeout_ms=default, openai_compatible_base_url=default, openai_compatible_model=missing, openai_compatible_timeout_ms=default, opencode_model=missing, opencode_timeout_ms=default, repo_path=missing
@@ -23,5 +23,5 @@ root/steps/anthropic_canary: process:anthropic/chat_complete [opaque_external_ac
   settings={"max_tokens":64,"timeout_ms":30000}
 root/steps/openai_compatible_canary: process:openai.compatible/chat_complete [opaque_external_action]
   network={"allow_hosts":["openrouter.ai","api.openai.com"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem=null secrets=["OPENAI_COMPATIBLE_API_KEY"]
-  settings={"max_tokens":64,"timeout_ms":30000}
+  settings={"max_completion_tokens":64,"timeout_ms":30000}
 Cleanup: []

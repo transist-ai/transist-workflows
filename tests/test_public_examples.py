@@ -40,10 +40,11 @@ class PublicExamplesTests(unittest.TestCase):
                 self.assertTrue(required.issubset(sample))
 
     def test_canary_prompt_and_participants(self) -> None:
-        """All seven canary participants request the same fixed text explicitly."""
+        """All six canary participants request the same fixed text explicitly."""
         example = ROOT / "examples" / "ai_agent_plugins_canary"
         document = yaml.safe_load((example / "workflow.yaml").read_text())
-        self.assertEqual(document["version"], "0.1.1")
+        self.assertEqual(document["version"], "0.1.3")
+        self.assertEqual(document["plugins"]["ollama.cli"], "0.1.1")
         self.assertEqual(document["plugins"]["cursor.cli"], "0.1.0")
         self.assertEqual(document["network"]["mode"], "none")
         self.assertEqual(document["workspace"]["access"], "read_only")
@@ -57,7 +58,6 @@ class PublicExamplesTests(unittest.TestCase):
                 "ollama_canary",
                 "cursor_canary",
                 "anthropic_canary",
-                "codex_canary",
                 "openai_compatible_canary",
             ],
         )
@@ -79,12 +79,30 @@ class PublicExamplesTests(unittest.TestCase):
                 self.assertNotEqual(effective["network"]["mode"], "any")
                 self.assertEqual(effective["network"]["max_redirects"], 0)
 
-        codex, compatible = steps[-2:]
-        self.assertEqual(codex["with"]["sandbox"], "read-only")
+        self.assertNotIn("codex.cli", document["plugins"])
+        self.assertNotIn("codex_model", document["inputs"])
+        compatible = steps[-1]
+        self.assertEqual(compatible["with"]["max_completion_tokens"], 64)
+        self.assertNotIn("max_tokens", compatible["with"])
         self.assertEqual(
             compatible["with"]["secret_refs"], ["OPENAI_COMPATIBLE_API_KEY"]
         )
-        self.assertEqual(compatible["network"]["allow_hosts"], ["openrouter.ai"])
+        self.assertEqual(
+            compatible["network"]["allow_hosts"], ["openrouter.ai", "api.openai.com"]
+        )
+        self.assertEqual(compatible["network"]["allow_ports"], [443])
+        self.assertTrue(compatible["network"]["tls_required"])
+        self.assertEqual(
+            compatible["with"]["base_url"], "{{inputs.openai_compatible_base_url}}"
+        )
+
+    def test_edge_completion_token_budget(self) -> None:
+        """The advisory forwards its explicit completion-token budget unchanged."""
+        flow = checker.load_yaml(ROOT / "examples/edge_fault_advisory/workflow.yaml")
+        self.assertEqual(flow["version"], "0.1.0")
+        step = next(step for step in flow["steps"] if step["id"] == "advise")
+        self.assertEqual(step["with"]["max_completion_tokens"], 512)
+        self.assertNotIn("max_tokens", step["with"])
 
     def test_validation_remediation_exits_on_pass_or_attempt_cap(self) -> None:
         """The loop consumes a named Boolean export; staged bookkeeping caps work."""

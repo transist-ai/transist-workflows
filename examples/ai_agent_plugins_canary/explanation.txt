@@ -1,0 +1,24 @@
+Workflow: ai_agent_plugins_canary@0.1.0
+Definition: 8f9ccb9d02c24320407d8a07b094eec0c352a3b631e4076121988db3dd5adc6d
+Static explanation; authority requested, not granted; external behavior opaque.
+Pins: anthropic@0.1.0 (resolved), cursor.cli@0.1.0 (resolved), github.copilot.cli@0.1.0 (resolved), ollama.cli@0.1.0 (resolved), opencode.cli@0.1.0 (resolved)
+Inputs: anthropic_model=missing, anthropic_timeout_ms=default, cursor_model=missing, cursor_timeout_ms=default, github_copilot_model=missing, github_copilot_timeout_ms=default, ignore_paths=default, ollama_model=missing, ollama_timeout_ms=default, opencode_model=missing, opencode_timeout_ms=default, repo_path=missing
+Workspace: {"access":"read_only","path":"{{inputs.repo_path}}"}
+Root network: {"max_redirects":0,"mode":"none","tls_required":false}
+Documents: {}
+root/steps/github_copilot_canary: process:github.copilot.cli/exec_task [opaque_external_action]
+  network={"allow_hosts":["api.github.com","api.githubcopilot.com","github.com"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem=null secrets=[]
+  settings={"history_mode":"invocation","max_context_file_bytes":65536,"max_prompt_bytes":98304,"output_mode":"compact","timeout_ms":180000}
+root/steps/opencode_canary: process:opencode.cli/exec_task [opaque_external_action]
+  network={"allow_hosts":["openrouter.ai"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem=null secrets=["OPENROUTER_KEY_PERSONAL"]
+  settings={"history_mode":"invocation","max_context_file_bytes":65536,"max_prompt_bytes":98304,"output_mode":"compact","timeout_ms":180000}
+root/steps/ollama_canary: process:ollama.cli/generate [opaque_external_action]
+  network={"allow_hosts":["127.0.0.1"],"allow_ports":[11434],"max_redirects":0,"mode":"loopback","tls_required":false} filesystem=null secrets=[]
+  settings={"max_prompt_bytes":98304,"output_mode":"compact","timeout_ms":180000}
+root/steps/cursor_canary: process:cursor.cli/exec_task_cli [opaque_external_action]
+  network={"allow_hosts":["api2.cursor.sh","agentn.us.api5.cursor.sh"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem={"write_allow_paths":["~/.cursor"]} secrets=[]
+  settings={"history_mode":"invocation","max_context_file_bytes":65536,"max_prompt_bytes":98304,"output_mode":"compact","timeout_ms":180000}
+root/steps/anthropic_canary: process:anthropic/chat_complete [opaque_external_action]
+  network={"allow_hosts":["api.anthropic.com"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem=null secrets=["ANTHROPIC_API_KEY"]
+  settings={"max_tokens":64,"timeout_ms":30000}
+Cleanup: []

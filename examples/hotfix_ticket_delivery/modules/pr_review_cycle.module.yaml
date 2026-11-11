@@ -1,0 +1,91 @@
+schema: transist.module.v1
+id: hotfix_pr_review_cycle
+version: 0.1.0
+modules:
+  review_changes_flow: {path: pr_review_changes.module.yaml}
+outputs:
+  state: "{{steps.inspect_pr_state.out.pull_request.state}}"
+  approval_ready: "{{steps.check_pr_exit_approvals.out.approval_ready}}"
+  merge_ready: "{{steps.check_pr_exit_mergeability.out.merge_ready}}"
+steps:
+  - id: check_working_files
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/check_working_files.py, --repo-path, "{{inputs.repo_path}}"]
+  - id: inspect_pr_comments
+    uses: process:github.cli/pr_unresolved_comments
+    with: {output_mode: compact, include_pr_conversation_comments: true, output_file: {$document: review_comments_raw, access: update}}
+  - id: inspect_pr_state
+    uses: process:github.cli/pr_view
+    with: {output_mode: compact, output_file: {$document: pr, access: write}}
+  - id: prepare_pending_review_comments
+    uses: process:github.cli/pr_prepare_review_context
+    with:
+      output_mode: compact
+      input_file: {$document: review_comments_raw, access: read}
+      pr_file: {$document: pr, access: read}
+      output_file: {$document: review_comments, access: write}
+  - id: check_pr_exit_approvals
+    uses: process:github.cli/pr_check_approvals
+    with: {output_mode: compact, required_approvals: "{{inputs.required_pr_approvals}}", soft_fail: true, output_file: {$document: pr_approvals, access: write}}
+  - id: check_pr_exit_mergeability
+    uses: process:github.cli/pr_check_mergeability
+    with: {output_mode: compact, output_file: {$document: pr_mergeability, access: write}}
+  - id: should_pause_for_review
+    control: control.noop
+    if:
+      guard: 'steps.check_pr_exit_approvals.out.approval_ready != true || steps.check_pr_exit_mergeability.out.merge_ready != true || steps.inspect_pr_state.out.pull_request.state != "OPEN"'
+      then: [{ref: review_cycle_decision}]
+  - id: review_cycle_decision
+    control: control.gate.manual
+    with:
+      gate_id: review-cycle-decision
+      review_documents: [review_comments, pr, pr_approvals, pr_mergeability]
+      operator_guidance:
+        conditions: {items: [Automated PR exit checks did not pass.]}
+        decisions: {approve: [Exit despite unmet checks.], request_changes: Run one remediation cycle., reject: Stop the run.}
+  - id: capture_review_cycle_decision
+    uses: process:shell/exec
+    gate_decision: {step: review_cycle_decision}
+    with:
+      command: python3
+      args: [source://scripts/reviewer_context.py, capture, --file, {$document: reviewer_context, access: update}]
+  - id: maybe_refresh_review_state
+    control: control.noop
+    if:
+      guard: 'steps.review_cycle_decision.out.decision == "request_changes"'
+      then: [{ref: check_working_files_before_refresh}, {ref: refresh_pr_comments}, {ref: refresh_pr_state}, {ref: merge_pending_review_comments}, {ref: write_operator_feedback}]
+  - id: check_working_files_before_refresh
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/check_working_files.py, --repo-path, "{{inputs.repo_path}}"]
+  - id: refresh_pr_comments
+    uses: process:github.cli/pr_unresolved_comments
+    with: {output_mode: compact, include_pr_conversation_comments: true, output_file: {$document: review_comments_raw, access: update}}
+  - id: refresh_pr_state
+    uses: process:github.cli/pr_view
+    with: {output_mode: compact, output_file: {$document: pr, access: write}}
+  - id: merge_pending_review_comments
+    uses: process:github.cli/pr_prepare_review_context
+    with:
+      output_mode: compact
+      input_file: {$document: review_comments_raw, access: read}
+      pending_file: {$document: review_comments, access: read}
+      pr_file: {$document: pr, access: read}
+      output_file: {$document: review_comments, access: write}
+  - id: write_operator_feedback
+    uses: process:shell/exec
+    gate_decision: {step: review_cycle_decision}
+    with:
+      command: python3
+      args: [source://scripts/write_operator_feedback.py, --output-file, {$document: operator_feedback, access: write}]
+  - id: maybe_review_changes
+    control: control.noop
+    if:
+      guard: 'steps.review_cycle_decision.out.decision == "request_changes" && steps.refresh_pr_state.out.pull_request.state != "MERGED"'
+      then: [{ref: review_changes_flow}]
+  - id: review_changes_flow
+    module: {ref: review_changes_flow, rerun_mode: fresh}
+  - {id: finish, control: control.finish}

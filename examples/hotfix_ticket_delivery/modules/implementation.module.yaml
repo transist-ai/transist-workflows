@@ -1,0 +1,21 @@
+schema: transist.module.v1
+id: hotfix_implementation_loop
+version: 0.1.0
+modules:
+  iteration: {path: implementation_iteration.module.yaml}
+steps:
+  - id: implementation_loop
+    control: control.noop
+    loop:
+      body: [{ref: implementation_iteration}]
+      until: 'steps.implementation_iteration.out.decision == "approved"'
+      max_iters: 5
+      max_duration: 16h
+  - id: implementation_iteration
+    module: {ref: iteration, rerun_mode: fresh}
+  - id: require_implementation_approval
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/require_implementation_approval.py, "{{steps.implementation_iteration.out.decision}}"]
+  - {id: finish, control: control.finish}

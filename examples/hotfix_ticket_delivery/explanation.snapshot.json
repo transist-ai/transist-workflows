@@ -1,0 +1,8 @@
+{
+  "workflow": "hotfix_ticket_delivery",
+  "version": "0.1.0",
+  "definition_sha256": "e0e7f2994d726c0da69f213da6f76ac81d8a9f4b0da36abe4906a23a7a886d69",
+  "projection_sha256": "d6caf9e1930bbfad1cbe4c6549238d4db5ad82bd63843033c559946a6774a991",
+  "projection": "scripts/explanation_snapshot.py",
+  "reports_compared": 2
+}

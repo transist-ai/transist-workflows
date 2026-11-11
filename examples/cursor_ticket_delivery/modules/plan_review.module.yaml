@@ -1,0 +1,65 @@
+schema: transist.module.v1
+id: cursor_plan_review_loop
+version: 0.1.0
+profiles:
+  plan:
+    uses: process:openspec/generate_plan
+    with:
+      output_mode: compact
+      max_context_file_bytes: 65536
+      max_prompt_bytes: 98304
+      ignore_paths: "{{inputs.ignore_paths}}"
+      backend: "{{inputs.openspec_backend}}"
+      model: "{{inputs.plan_model}}"
+      reasoning_effort: "{{inputs.openspec_reasoning_effort}}"
+      timeout_ms: "{{inputs.openspec_timeout_ms}}"
+steps:
+  - id: plan_loop
+    control: control.noop
+    loop:
+      body: [{ref: check_working_files}, {ref: capture_prior_plan_decision}, {ref: generate_plan}, {ref: review_plan}]
+      until: 'steps.review_plan.out.decision == "approved"'
+      max_iters: 5
+      max_duration: 8h
+  - id: check_working_files
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/check_working_files.py, --repo-path, "{{inputs.repo_path}}"]
+  - id: capture_prior_plan_decision
+    uses: process:shell/exec
+    gate_decision: {step: review_plan}
+    with:
+      command: python3
+      args: [source://scripts/reviewer_context.py, capture, --file, {$document: reviewer_context, access: update}]
+  - id: generate_plan
+    uses: process:openspec/generate_plan
+    profile: plan
+    gate_decision: {step: review_plan}
+    prompt_file: prompts/create_plan.md
+    with:
+      feedback_context_mode: focused
+      change_name: "{{inputs.jira_ticket_id}}"
+      context_files: [{$document: reviewer_context, access: read}, {$document: jira_issue, access: read}, {$document: attachment_context, access: read}]
+      response_file: {$document: plan, access: update}
+      change_metadata_file: {$document: openspec_change, access: write}
+  - id: review_plan
+    control: control.gate.manual
+    with: {gate_id: plan-review, review_documents: [plan, openspec_change]}
+  - id: capture_plan_approval
+    uses: process:shell/exec
+    gate_decision: {step: review_plan}
+    with:
+      command: python3
+      args: [source://scripts/reviewer_context.py, capture, --file, {$document: reviewer_context, access: update}]
+  - id: export_reviewed_plan
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/reviewed_copy.py, {$document: plan, access: read, reviewed_by: review_plan}, {$document: approved_plan, access: write}, {$document: openspec_change, access: read, reviewed_by: review_plan}, {$document: approved_change, access: write}]
+  - id: relocate_plan_md
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/relocate_plan_md.py, --plan-file, {$document: plan, access: read, reviewed_by: review_plan}, --repo-path, "{{inputs.repo_path}}", --change-name, "{{inputs.jira_ticket_id}}"]
+  - {id: finish, control: control.finish}

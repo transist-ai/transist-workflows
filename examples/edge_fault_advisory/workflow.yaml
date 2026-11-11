@@ -1,0 +1,70 @@
+schema: transist.flow.v1
+id: edge_fault_advisory
+version: 0.1.0
+plugins:
+  shell: 0.1.0
+  openai.compatible: 0.1.0
+inputs:
+  workspace_path:
+    type: string
+    required: true
+  model:
+    type: string
+    required: true
+  diagnostic_path:
+    type: string
+    default: diagnostics.txt
+    description: Regular UTF-8 file contained in the selected workspace.
+workspace:
+  path: "{{inputs.workspace_path}}"
+  access: read_only
+network:
+  mode: none
+documents:
+  diagnostic:
+    kind: file
+    max_bytes: 65536
+  response:
+    kind: file
+    max_bytes: 65536
+steps:
+  - id: read_diagnostics
+    uses: process:shell/read_file
+    with:
+      path: "{{inputs.diagnostic_path}}"
+      max_bytes: 65536
+      output_mode: compact
+      output_file: {$document: diagnostic, access: write}
+  - id: diagnostic_transfer
+    control: control.gate.manual
+    with:
+      gate_id: diagnostic-transfer
+      review_documents: [diagnostic]
+      destination: https://openrouter.ai/api/v1
+      model: "{{inputs.model}}"
+      operator_guidance:
+        conditions:
+          - Review the captured diagnostic document. Approval covers this exact revision, not later workspace changes.
+          - Approval permits sending the reviewed document to OpenRouter for advice; it does not authorize any machine action.
+        decisions:
+          approve: The exact payload is reviewed and its external transfer is authorized.
+          reject: Stop the run without sending diagnostics to the provider.
+          request_changes: This workflow has no revision loop. Reject and start a fresh run with corrected inputs instead.
+  - id: advise
+    uses: process:openai.compatible/chat_complete
+    network:
+      mode: allowlist
+      allow_hosts: [openrouter.ai]
+      allow_ports: [443]
+      tls_required: true
+      max_redirects: 0
+    with:
+      base_url: https://openrouter.ai/api/v1
+      model: "{{inputs.model}}"
+      system_prompt: "You are a technician adviser. Give at most three evidence-backed diagnostic checks, name missing information, and do not claim any machine action has occurred."
+      user_text_file: {$document: diagnostic, access: read, reviewed_by: diagnostic_transfer}
+      response_file: {$document: response, access: write}
+      max_prompt_bytes: 98304
+      max_tokens: 512
+      timeout_ms: 30000
+      secret_refs: [OPENAI_COMPATIBLE_API_KEY]

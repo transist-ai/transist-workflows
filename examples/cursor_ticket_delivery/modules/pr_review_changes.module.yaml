@@ -1,0 +1,54 @@
+schema: transist.module.v1
+id: cursor_pr_review_changes_loop
+version: 0.1.0
+modules:
+  review_implementation_loop: {path: pr_review_implementation.module.yaml}
+steps:
+  - id: refresh_branch_from_remote
+    uses: process:git.cli/pull_current_branch
+    with: {output_mode: compact, remote: "{{inputs.git_remote}}"}
+  - id: check_working_files
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/check_working_files.py, --repo-path, "{{inputs.repo_path}}"]
+  - id: filter_review_comments
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/pr_review_replies.py, filter, --input-file, {$document: review_comments, access: read}, --output-file, {$document: review_comments_actionable, access: write}, --state-file, {$document: review_replies_state, access: read}, --pr-file, {$document: pr, access: read}]
+  - id: scan_tst_comments
+    uses: process:git.cli/scan_instruction_comments
+    with: {output_mode: compact, output_file: {$document: tst_comments, access: write}}
+  - id: review_implementation_loop
+    module: {ref: review_implementation_loop, rerun_mode: fresh}
+  - id: plan_review_responses
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/pr_review_replies.py, plan, --review-comments-file, {$document: review_comments_actionable, access: read}, --implementation-notes-file, {$document: implementation_notes, access: read}, --output-file, {$document: review_replies, access: write}]
+  - id: check_working_files_before_commit
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/check_working_files.py, --repo-path, "{{inputs.repo_path}}"]
+  - id: commit_review_changes
+    uses: process:git.cli/commit_worktree
+    with: {output_mode: compact, jira_ticket_id: "{{inputs.jira_ticket_id}}", message: review changes, add_all: true, allow_no_changes: true}
+  - id: maybe_push_review_changes
+    control: control.noop
+    if:
+      guard: 'steps.commit_review_changes.out.committed == true'
+      then: [{ref: push_review_changes}]
+  - id: push_review_changes
+    uses: process:git.cli/push_current_branch
+    with: {output_mode: compact, remote: "{{inputs.git_remote}}", set_upstream: false}
+  - id: publish_review_responses
+    uses: process:github.cli/pr_publish_review_replies
+    with:
+      output_mode: compact
+      response_plan_file: {$document: review_replies, access: read}
+      state_file: {$document: review_replies_state, access: update}
+      output_file: {$document: review_replies_publish, access: write}
+      resolve_addressed_threads: "{{steps.commit_review_changes.out.committed}}"
+  - {id: finish, control: control.finish}

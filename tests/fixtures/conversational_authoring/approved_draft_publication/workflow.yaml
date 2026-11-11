@@ -1,0 +1,73 @@
+schema: transist.flow.v1
+id: approved_draft_publication
+version: 0.1.0
+plugins:
+  shell: 0.1.0
+  openai.compatible: 0.1.0
+  github.cli: 0.1.0
+inputs:
+  workspace_path: {type: string, required: true}
+  model: {type: string, required: true}
+  source_path: {type: string, default: brief.txt}
+  repository: {type: string, required: true}
+  title: {type: string, required: true}
+  head: {type: string, required: true}
+  base: {type: string, default: main}
+workspace:
+  path: "{{inputs.workspace_path}}"
+  access: read_only
+network:
+  mode: loopback
+  allow_hosts: [127.0.0.1]
+  allow_ports: [18765]
+  tls_required: false
+  max_redirects: 0
+documents:
+  brief: {kind: file, max_bytes: 65536}
+  draft: {kind: file, max_bytes: 65536}
+steps:
+  - id: capture
+    uses: process:shell/read_file
+    network: {mode: none}
+    with:
+      path: "{{inputs.source_path}}"
+      max_bytes: 65536
+      output_mode: compact
+      output_file: {$document: brief, access: write}
+  - id: compose
+    uses: process:openai.compatible/chat_complete
+    with:
+      base_url: http://127.0.0.1:18765/v1
+      model: "{{inputs.model}}"
+      system_prompt: Write a concise draft PR description from the fictional brief. Do not publish or claim any code change.
+      user_text_file: {$document: brief, access: read}
+      response_file: {$document: draft, access: write}
+      max_prompt_bytes: 98304
+      max_tokens: 512
+      timeout_ms: 30000
+      secret_refs: [OPENAI_COMPATIBLE_API_KEY]
+  - id: review_draft
+    control: control.gate.manual
+    with:
+      gate_id: draft-review
+      review_documents: [draft]
+      operator_guidance:
+        conditions:
+          - Review the exact draft revision for one fake draft PR. No push, merge or workspace mutation.
+        decisions:
+          approve: Approve the captured draft.
+          reject: Stop without publication.
+          request_changes: Reject and start a fresh run; no revision loop.
+  - id: publish
+    uses: process:github.cli/pr_create
+    with:
+      repo: "{{inputs.repository}}"
+      title: "{{inputs.title}}"
+      head: "{{inputs.head}}"
+      base: "{{inputs.base}}"
+      body_file: {$document: draft, access: read, reviewed_by: review_draft}
+      draft: true
+      fill: false
+      output_mode: compact
+      max_response_bytes: 65536
+      max_total_response_bytes: 65536

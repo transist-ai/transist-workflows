@@ -1,0 +1,7 @@
+workspace_path: <bind-absolute-disposable-workspace>
+model: fixture
+source_path: brief.txt
+repository: fixture/drafts
+title: Fictional draft
+head: fixture-branch
+base: main

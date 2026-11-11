@@ -1,0 +1,5 @@
+Fictional edge controller (training fixture; no actual device identifier)
+Temperature sensor: 42 C at idle (expected 22-30 C).
+Supply: 11.9 V under load (nominal 12 V).
+Fault code: FAN_STALL_SIMULATED.
+Observation: fan is audible for one second after startup, then stops.

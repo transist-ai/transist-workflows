@@ -1,0 +1,5 @@
+# Replace placeholders in a local copy before checking or running.
+repo_path: /path/to/example-repository
+jira_ticket_id: PROJ-123
+jira_site_url: https://example.atlassian.net
+copilot_model: gpt-6-sol

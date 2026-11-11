@@ -1,0 +1,8 @@
+{
+  "workflow": "cursor_ticket_delivery",
+  "version": "0.1.0",
+  "definition_sha256": "b9ee321cff9bdfdec03aa2a3dc77350604c3f1a4287257c559184869989656b3",
+  "projection_sha256": "5a7543257d56ca361e9b2eacaac922ef0c6c243d8fe9fcd9b276c8e1b10c1ce8",
+  "projection": "scripts/explanation_snapshot.py",
+  "reports_compared": 2
+}

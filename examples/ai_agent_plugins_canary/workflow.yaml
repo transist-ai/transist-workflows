@@ -1,0 +1,180 @@
+schema: transist.flow.v1
+id: ai_agent_plugins_canary
+version: 0.1.0
+plugins:
+  anthropic: 0.1.0
+  cursor.cli: 0.1.0
+  github.copilot.cli: 0.1.0
+  ollama.cli: 0.1.0
+  opencode.cli: 0.1.0
+
+context:
+  output_mode: compact
+  history_mode: invocation
+  context_limit: 65536
+  prompt_limit: 98304
+
+profiles:
+  copilot:
+    uses: process:github.copilot.cli/exec_task
+    prompt_file: ./prompt.md
+    with:
+      output_mode: "{{context.output_mode}}"
+      history_mode: "{{context.history_mode}}"
+      max_context_file_bytes: "{{context.context_limit}}"
+      max_prompt_bytes: "{{context.prompt_limit}}"
+      ignore_paths: "{{inputs.ignore_paths}}"
+  opencode:
+    uses: process:opencode.cli/exec_task
+    prompt_file: ./prompt.md
+    with:
+      output_mode: "{{context.output_mode}}"
+      history_mode: "{{context.history_mode}}"
+      max_context_file_bytes: "{{context.context_limit}}"
+      max_prompt_bytes: "{{context.prompt_limit}}"
+      ignore_paths: "{{inputs.ignore_paths}}"
+  ollama:
+    uses: process:ollama.cli/generate
+    prompt_file: ./prompt.md
+    with:
+      output_mode: "{{context.output_mode}}"
+      max_prompt_bytes: "{{context.prompt_limit}}"
+  cursor:
+    uses: process:cursor.cli/exec_task_cli
+    prompt_file: ./prompt.md
+    with:
+      output_mode: "{{context.output_mode}}"
+      history_mode: "{{context.history_mode}}"
+      max_context_file_bytes: "{{context.context_limit}}"
+      max_prompt_bytes: "{{context.prompt_limit}}"
+      ignore_paths: "{{inputs.ignore_paths}}"
+
+network:
+  mode: none
+
+workspace:
+  path: "{{inputs.repo_path}}"
+  access: read_only
+
+inputs:
+  repo_path:
+    type: string
+    required: true
+    description: Existing caller-selected canonical workspace; not the workflow source.
+  ignore_paths:
+    type: array
+    default: []
+    description: Repo-relative ignore globs; not a security boundary.
+  github_copilot_model:
+    type: string
+    required: true
+    description: Caller-selected model supported by the authenticated Copilot CLI.
+  github_copilot_timeout_ms:
+    type: number
+    default: 180000
+  opencode_model:
+    type: string
+    required: true
+    description: Caller-selected openrouter/<model-id> supported by the account.
+  opencode_timeout_ms:
+    type: number
+    default: 180000
+  ollama_model:
+    type: string
+    required: true
+    description: Nonempty locally installed model tag; no remote model download.
+  ollama_timeout_ms:
+    type: number
+    default: 180000
+  cursor_model:
+    type: string
+    required: true
+    description: Caller-selected model supported by the authenticated Cursor CLI.
+  cursor_timeout_ms:
+    type: number
+    default: 180000
+  anthropic_model:
+    type: string
+    required: true
+    description: Native model ID available to the caller's Anthropic Console workspace.
+  anthropic_timeout_ms:
+    type: number
+    default: 30000
+    description: Integral transport timeout in milliseconds, 1–120000.
+
+steps:
+  - id: github_copilot_canary
+    uses: process:github.copilot.cli/exec_task
+    profile: copilot
+    network:
+      mode: allowlist
+      allow_hosts: [api.github.com, api.githubcopilot.com, github.com]
+      allow_ports: [443]
+      tls_required: true
+      max_redirects: 0
+    with:
+      response_file: run://ai_agent_plugins_canary/github_copilot_response.md
+      model: "{{inputs.github_copilot_model}}"
+      timeout_ms: "{{inputs.github_copilot_timeout_ms}}"
+
+  - id: opencode_canary
+    uses: process:opencode.cli/exec_task
+    profile: opencode
+    network:
+      mode: allowlist
+      allow_hosts: [openrouter.ai]
+      allow_ports: [443]
+      tls_required: true
+      max_redirects: 0
+    with:
+      secret_refs: [OPENROUTER_KEY_PERSONAL]
+      response_file: run://ai_agent_plugins_canary/opencode_response.md
+      model: "{{inputs.opencode_model}}"
+      timeout_ms: "{{inputs.opencode_timeout_ms}}"
+
+  - id: ollama_canary
+    uses: process:ollama.cli/generate
+    profile: ollama
+    network:
+      mode: loopback
+      allow_hosts: [127.0.0.1]
+      allow_ports: [11434]
+      tls_required: false
+      max_redirects: 0
+    with:
+      model: "{{inputs.ollama_model}}"
+      timeout_ms: "{{inputs.ollama_timeout_ms}}"
+
+  - id: cursor_canary
+    uses: process:cursor.cli/exec_task_cli
+    profile: cursor
+    network:
+      mode: allowlist
+      allow_hosts: [api2.cursor.sh, agentn.us.api5.cursor.sh]
+      allow_ports: [443]
+      tls_required: true
+      max_redirects: 0
+    filesystem_policy:
+      write_allow_paths:
+        - ~/.cursor
+    with:
+      response_file: run://ai_agent_plugins_canary/cursor_response.md
+      model: "{{inputs.cursor_model}}"
+      timeout_ms: "{{inputs.cursor_timeout_ms}}"
+
+  - id: anthropic_canary
+    uses: process:anthropic/chat_complete
+    network:
+      mode: allowlist
+      allow_hosts: [api.anthropic.com]
+      allow_ports: [443]
+      tls_required: true
+      max_redirects: 0
+    with:
+      secret_refs: [ANTHROPIC_API_KEY]
+      model: "{{inputs.anthropic_model}}"
+      messages:
+        - role: user
+          content: "Reply with exactly this text, no extra commentary: AI agent plugin canary: OK."
+      max_tokens: 64
+      timeout_ms: "{{inputs.anthropic_timeout_ms}}"

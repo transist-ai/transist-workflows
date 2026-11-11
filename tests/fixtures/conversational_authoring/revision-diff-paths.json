@@ -1,0 +1,11 @@
+[
+  "/assets/workflow.yaml/normalized_sha256",
+  "/assets/workflow.yaml/sha256",
+  "/definition_sha256",
+  "/scopes/root/graph/edges",
+  "/scopes/root/step_order",
+  "/steps/root~1steps~1publish/bindings/body_file/reviewed_by",
+  "/steps/root~1steps~1publish/bound_bindings/body_file/reviewed_by",
+  "/steps/root~1steps~1publish/documents",
+  "/steps/root~1steps~1review_publication"
+]

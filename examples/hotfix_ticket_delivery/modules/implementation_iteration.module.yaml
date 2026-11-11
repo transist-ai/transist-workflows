@@ -1,0 +1,70 @@
+schema: transist.module.v1
+id: hotfix_implementation_iteration
+version: 0.1.0
+outputs:
+  decision: "{{steps.review_implementation.out.decision}}"
+profiles:
+  author:
+    uses: process:github.copilot.cli/exec_task
+    with:
+      output_mode: compact
+      history_mode: invocation
+      max_context_file_bytes: 65536
+      max_prompt_bytes: 98304
+      ignore_paths: "{{inputs.ignore_paths}}"
+      timeout_ms: "{{inputs.copilot_timeout_ms}}"
+      allowed_tools: "{{inputs.copilot_allowed_tools}}"
+      denied_tools: "{{inputs.copilot_denied_tools}}"
+      extra_args: "{{inputs.copilot_extra_args}}"
+      model: "{{inputs.copilot_model}}"
+      reasoning_effort: "{{inputs.copilot_reasoning_effort}}"
+steps:
+  - id: check_working_files
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/check_working_files.py, --repo-path, "{{inputs.repo_path}}"]
+  - id: implement_fix
+    uses: process:github.copilot.cli/exec_task
+    profile: author
+    prompt_file: prompts/implement_fix.md
+    skills: [skills/code-changes/SKILL.md]
+    with:
+      feedback_context_mode: focused
+      context_files: [{$document: reviewer_context, access: read}, {$document: jira_issue, access: read}, {$document: attachment_context, access: read}, {$document: tst_comments, access: read}]
+      response_file: {$document: implementation_notes, access: update}
+      summary_title_file: {$document: change_summary_title, access: write}
+      pr_body_file: {$document: pr_body, access: write}
+  - id: review_implementation
+    control: control.gate.manual
+    with:
+      gate_id: implementation-review
+      review_documents: [implementation_notes, change_summary_title, pr_body]
+  - id: capture_implementation_decision
+    uses: process:shell/exec
+    gate_decision: {step: review_implementation}
+    with:
+      command: python3
+      args: [source://scripts/reviewer_context.py, capture, --file, {$document: reviewer_context, access: update}]
+  - id: route_implementation_decision
+    control: control.noop
+    if:
+      guard: 'steps.review_implementation.out.decision == "request_changes"'
+      then: [{ref: scan_tst_comments}]
+      else: [{ref: export_reviewed_implementation}]
+  - id: scan_tst_comments
+    uses: process:git.cli/scan_instruction_comments
+    with: {output_mode: compact, output_file: {$document: tst_comments, access: write}}
+  - id: export_reviewed_implementation
+    uses: process:shell/exec
+    with:
+      command: python3
+      args:
+        - source://scripts/reviewed_copy.py
+        - {$document: implementation_notes, access: read, reviewed_by: review_implementation}
+        - {$document: approved_notes, access: write}
+        - {$document: change_summary_title, access: read, reviewed_by: review_implementation}
+        - {$document: approved_summary, access: write}
+        - {$document: pr_body, access: read, reviewed_by: review_implementation}
+        - {$document: approved_pr_body, access: write}
+  - {id: finish, control: control.finish}

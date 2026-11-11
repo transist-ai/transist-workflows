@@ -1,0 +1,27 @@
+.DS_Store
+*.log
+/tmp
+/.transist/
+/.agents/development/plans
+__pycache__/
+**/__pycache__/
+**/tests/__pycache__/
+*.pyc
+.pytest_cache/
+/packages/
+/priv/
+
+# Keep operational inputs local; publish only reviewed example inputs.
+inputs.yaml
+inputs.json
+inputs.*.yaml
+inputs.*.yml
+inputs.*.json
+!inputs.example.yaml
+.env
+.env.*
+.venv/
+.ruff_cache/
+.mypy_cache/
+*.pem
+*.key

@@ -1,0 +1,4 @@
+# Fictional workspace file; the workflow captures it into a managed document.
+workspace_path: /path/to/transist-workflows/examples/edge_fault_advisory/fixtures
+diagnostic_path: diagnostics.txt
+model: YOUR_OPENROUTER_MODEL_ID

@@ -1,0 +1,45 @@
+schema: transist.module.v1
+id: cursor_validation_remediation_iteration
+version: 0.1.0
+modules:
+  address_validation_report: {path: implementation.module.yaml}
+outputs:
+  passed: "{{steps.validate_changes.out.passed}}"
+profiles:
+  verify:
+    uses: process:openspec/verify
+    with:
+      output_mode: compact
+      max_context_file_bytes: 65536
+      max_prompt_bytes: 98304
+      ignore_paths: "{{inputs.ignore_paths}}"
+      backend: "{{inputs.openspec_backend}}"
+      model: "{{inputs.openspec_model}}"
+      reasoning_effort: "{{inputs.openspec_reasoning_effort}}"
+      timeout_ms: "{{inputs.openspec_timeout_ms}}"
+      fail_on_mismatch: false
+steps:
+  - id: advance_validation_remediation_attempt
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/validation_attempt.py, --file, {$document: validation_attempt, access: update}, --max-attempts, "{{inputs.validation_remediation_max_iterations}}"]
+  - id: address_validation_report
+    module:
+      ref: address_validation_report
+      rerun_mode: fresh
+      inputs: {stage_model: "{{inputs.remediation_model}}"}
+  - id: check_reviewer_context
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/reviewer_context.py, capture, --file, {$document: reviewer_context, access: update}]
+  - id: validate_changes
+    uses: process:openspec/verify
+    profile: verify
+    prompt_file: prompts/validate_changes.md
+    with:
+      change_name: "{{inputs.jira_ticket_id}}"
+      context_files: [{$document: reviewer_context, access: read}, {$document: jira_issue, access: read}, {$document: attachment_context, access: read}, {$document: approved_change, access: read}, {$document: approved_notes, access: read}]
+      report_file: {$document: validation_report, access: write}
+  - {id: finish, control: control.finish}

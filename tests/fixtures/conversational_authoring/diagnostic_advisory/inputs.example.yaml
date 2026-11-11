@@ -1,0 +1,3 @@
+workspace_path: <bind-absolute-disposable-workspace>
+model: fixture
+source_path: diagnostics.txt

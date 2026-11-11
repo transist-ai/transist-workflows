@@ -1,0 +1,13 @@
+# Fictitious inputs. Copy outside the package and edit before bound checks or runs.
+# Edit every exact Jira host allowlist to match jira_site_url BEFORE install/sign.
+repo_path: /path/to/example-repository
+jira_ticket_id: PROJ-123
+jira_site_url: https://example.atlassian.net
+trunk_branch: main
+plan_model: gpt-5.6-sol-high
+implementation_model: gpt-5.6-sol-medium
+review_model: gpt-5.6-sol-medium
+remediation_model: gpt-5.6-sol-medium
+pr_body_model: gpt-5.6-luna-low
+validation_model: gpt-5.6-sol-high
+openspec_model: gpt-5.6-sol-high

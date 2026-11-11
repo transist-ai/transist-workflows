@@ -1,0 +1,16 @@
+schema: transist.module.v1
+id: hotfix_pr_review_loop
+version: 0.1.0
+modules:
+  review_cycle: {path: pr_review_cycle.module.yaml}
+steps:
+  - id: review_loop
+    control: control.noop
+    loop:
+      body: [{ref: review_cycle}]
+      until: 'steps.review_cycle.out.status == "success" && ((steps.review_cycle.out.state == "MERGED") || (steps.review_cycle.out.approval_ready == true && steps.review_cycle.out.merge_ready == true && steps.review_cycle.out.state == "OPEN") || (steps.review_cycle.out.child_steps.review_cycle_decision.out.decision == "approved"))'
+      max_iters: 10
+      max_duration: 168h
+  - id: review_cycle
+    module: {ref: review_cycle, rerun_mode: fresh}
+  - {id: finish, control: control.finish}

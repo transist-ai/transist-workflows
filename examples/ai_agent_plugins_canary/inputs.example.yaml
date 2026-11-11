@@ -1,0 +1,10 @@
+# Schema-valid placeholders only: NOT runnable until every model and path is supplied.
+# Use account-supported model IDs, not a personal or presumed model catalog.
+# Keep credentials in the runtime secret provider / CLI login, never this file.
+repo_path: /path/to/your/workspace
+github_copilot_model: gpt-5.4
+opencode_model: openrouter/mistralai/mistral-nemo
+cursor_model: gpt-5.6-luna-low
+ollama_model: qwen3.5:4b
+anthropic_model: claude-haiku-4-5-20251001
+anthropic_timeout_ms: 30000

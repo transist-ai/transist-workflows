@@ -1,0 +1,20 @@
+Workflow: edge_fault_advisory@0.1.0
+Definition: afc71e4e157f53a8368d1045a3d69a94017a05b75ba2c451f971e4f94a87c7fa
+Static explanation; authority requested, not granted; external behavior opaque.
+Pins: openai.compatible@0.1.0 (resolved), shell@0.1.0 (resolved)
+Inputs: diagnostic_path=default, model=missing, workspace_path=missing
+Workspace: {"access":"read_only","path":"{{inputs.workspace_path}}"}
+Root network: {"max_redirects":0,"mode":"none","tls_required":false}
+Documents: {"diagnostic":{"kind":"file","max_bytes":65536,"revision_state":"not_created"},"response":{"kind":"file","max_bytes":65536,"revision_state":"not_created"}}
+root/steps/read_diagnostics: process:shell/read_file [opaque_external_action]
+  network=null filesystem=null secrets=[]
+  documents=[{"binding":{"$document":"diagnostic","access":"write"},"path":"/output_file"}]
+  settings={"output_mode":"compact"}
+root/steps/diagnostic_transfer: control.gate.manual [kernel_control]
+  network=null filesystem=null secrets=[]
+  gate={"decision_state":"not_created","gate_id":"diagnostic-transfer","review_documents":["diagnostic"],"revision_state":"not_created"}
+root/steps/advise: process:openai.compatible/chat_complete [opaque_external_action]
+  network={"allow_hosts":["openrouter.ai"],"allow_ports":[443],"max_redirects":0,"mode":"allowlist","tls_required":true} filesystem=null secrets=["OPENAI_COMPATIBLE_API_KEY"]
+  documents=[{"binding":{"$document":"response","access":"write"},"path":"/response_file"},{"binding":{"$document":"diagnostic","access":"read","reviewed_by":"diagnostic_transfer"},"path":"/user_text_file"}]
+  settings={"max_prompt_bytes":98304,"max_tokens":512,"timeout_ms":30000}
+Cleanup: []

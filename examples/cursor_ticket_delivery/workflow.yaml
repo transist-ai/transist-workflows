@@ -1,0 +1,258 @@
+schema: transist.flow.v1
+id: cursor_ticket_delivery
+version: 0.1.0
+plugins: {cursor.cli: 0.1.0, git.cli: 0.1.0, github.cli: 0.1.0, jira.rest: 0.1.0, openspec: 0.1.0, shell: 0.1.0}
+modules:
+  implementation_loop: {path: modules/implementation.module.yaml}
+  plan_review: {path: modules/plan_review.module.yaml}
+  pr_review: {path: modules/pr_review.module.yaml}
+  validation_remediation: {path: modules/validation_remediation.module.yaml}
+network:
+  mode: allowlist
+  allow_hosts: [agentn.us.api5.cursor.sh, api.github.com, api.githubcopilot.com, api2.cursor.sh, github.com, example.atlassian.net]
+  allow_ports: [443]
+  tls_required: true
+  max_redirects: 5
+workspace: {path: "{{inputs.repo_path}}", access: full}
+filesystem_policy:
+  write_allow_paths: [~/.cursor]
+context: {context_limit: 65536, prompt_limit: 98304}
+profiles:
+  author:
+    uses: process:cursor.cli/exec_task_cli
+    with:
+      output_mode: compact
+      history_mode: invocation
+      max_context_file_bytes: "{{context.context_limit}}"
+      max_prompt_bytes: "{{context.prompt_limit}}"
+      ignore_paths: "{{inputs.ignore_paths}}"
+      timeout_ms: "{{inputs.agent_timeout_ms}}"
+      allowed_tools: "{{inputs.agent_allowed_tools}}"
+      denied_tools: "{{inputs.agent_denied_tools}}"
+      extra_args: "{{inputs.agent_extra_args}}"
+      reasoning_effort: "{{inputs.agent_reasoning_effort}}"
+  verify:
+    uses: process:openspec/verify
+    with:
+      output_mode: compact
+      max_context_file_bytes: "{{context.context_limit}}"
+      max_prompt_bytes: "{{context.prompt_limit}}"
+      ignore_paths: "{{inputs.ignore_paths}}"
+      backend: "{{inputs.openspec_backend}}"
+      reasoning_effort: "{{inputs.openspec_reasoning_effort}}"
+      timeout_ms: "{{inputs.openspec_timeout_ms}}"
+      fail_on_mismatch: false
+documents:
+  reviewer_context: {kind: file, max_bytes: 65536}
+  jira_issue: {kind: file, max_bytes: 1048576}
+  attachments: {kind: tree, max_bytes: 10485760, max_files: 100}
+  attachment_context: {kind: file, max_bytes: 65536}
+  tst_comments: {kind: file, max_bytes: 32768, initial: ""}
+  plan: {kind: file, max_bytes: 65536, initial: ""}
+  approved_plan: {kind: file, max_bytes: 65536}
+  openspec_change: {kind: file, max_bytes: 65536}
+  approved_change: {kind: file, max_bytes: 65536}
+  implementation_notes: {kind: file, max_bytes: 65536, initial: ""}
+  change_summary_title: {kind: file, max_bytes: 4096}
+  pr_body: {kind: file, max_bytes: 65536}
+  approved_notes: {kind: file, max_bytes: 65536}
+  approved_summary: {kind: file, max_bytes: 4096}
+  approved_pr_body: {kind: file, max_bytes: 65536}
+  validation_report: {kind: file, max_bytes: 65536, initial: ""}
+  validation_attempt: {kind: file, max_bytes: 4096, initial: '{"attempt":0}'}
+  pr_body_header: {kind: file, max_bytes: 65536}
+  pull_request_template: {kind: file, max_bytes: 65536}
+  pr_body_prepared: {kind: file, max_bytes: 65536}
+  pr_body_for_open: {kind: file, max_bytes: 65536}
+  pr: {kind: file, max_bytes: 1048576}
+  review_comments_raw: {kind: file, max_bytes: 1048576, initial: "{}"}
+  review_comments: {kind: file, max_bytes: 65536, initial: '{"comments":[]}'}
+  review_comments_actionable: {kind: file, max_bytes: 65536}
+  review_replies: {kind: file, max_bytes: 65536}
+  review_replies_state: {kind: file, max_bytes: 65536, initial: '{"responses":{}}'}
+  review_replies_publish: {kind: file, max_bytes: 65536}
+  pr_approvals: {kind: file, max_bytes: 65536}
+  pr_mergeability: {kind: file, max_bytes: 65536}
+  operator_feedback: {kind: file, max_bytes: 65536, initial: ""}
+  review_cycle_feedback: {kind: file, max_bytes: 65536, initial: ""}
+  validation_awareness_comment: {kind: file, max_bytes: 65536}
+  validation_awareness_result: {kind: file, max_bytes: 65536, initial: "{}"}
+inputs:
+  repo_path: {type: string, required: true, description: Exact target Git workspace. Independent runs must coordinate mutations.}
+  ignore_paths: {type: array, default: ["**/_build/**", "**/deps/*/_build/**"]}
+  jira_ticket_id: {type: string, required: true}
+  jira_site_url: {type: string, default: ""}
+  branch_name: {type: string, default: ""}
+  git_remote: {type: string, default: origin}
+  trunk_branch: {type: string, default: master}
+  required_pr_approvals: {type: number, default: 1}
+  in_progress_status: {type: string, default: IN PROGRESS}
+  under_review_status: {type: string, default: Review}
+  done_status: {type: string, default: DONE}
+  include_transist_pr_callout: {type: string, default: "false"}
+  agent_allowed_tools: {type: array, default: []}
+  agent_denied_tools: {type: array, default: ["shell(git commit:*)", "shell(git push:*)", "shell(gh pr:*)"]}
+  agent_extra_args: {type: array, default: []}
+  agent_timeout_ms: {type: number, default: 300000}
+  agent_reasoning_effort: {type: string, default: medium}
+  plan_model: {type: string, default: ""}
+  implementation_model: {type: string, default: ""}
+  review_model: {type: string, default: ""}
+  remediation_model: {type: string, default: ""}
+  pr_body_model: {type: string, default: ""}
+  validation_model: {type: string, default: ""}
+  openspec_model: {type: string, default: ""}
+  openspec_backend: {type: string, default: cursor}
+  openspec_reasoning_effort: {type: string, default: xhigh}
+  openspec_timeout_ms: {type: number, default: 300000}
+  validation_remediation_max_iterations: {type: number, default: 5}
+  attachment_allowed_extensions: {type: array, default: [md, txt, log, json, yaml, yml, csv, pdf]}
+  attachment_allowed_mime_prefixes: {type: array, default: ["text/", application/json, application/yaml, application/pdf]}
+  attachment_max_bytes: {type: number, default: 10485760}
+steps:
+  - id: initialize_reviewer_context
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://modules/scripts/reviewer_context.py, init, --file, {$document: reviewer_context, access: write}]
+  - id: check_working_files
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://modules/scripts/check_working_files.py, --repo-path, "{{inputs.repo_path}}"]
+  - id: fetch_jira_issue
+    uses: process:jira.rest/get_issue
+    with:
+      output_mode: compact
+      issue_key: "{{inputs.jira_ticket_id}}"
+      site_url: "{{inputs.jira_site_url}}"
+      output_file: {$document: jira_issue, access: write}
+      secret_refs: [JIRA_AUTH_HEADER]
+  - id: download_jira_attachments
+    uses: process:jira.rest/download_attachments
+    with:
+      output_mode: compact
+      site_url: "{{inputs.jira_site_url}}"
+      jira_issue_file: {$document: jira_issue, access: read}
+      output_dir: {$document: attachments, access: write}
+      allowed_extensions: "{{inputs.attachment_allowed_extensions}}"
+      allowed_mime_prefixes: "{{inputs.attachment_allowed_mime_prefixes}}"
+      max_bytes: "{{inputs.attachment_max_bytes}}"
+      secret_refs: [JIRA_AUTH_HEADER]
+  - id: project_attachments
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/project_attachments.py, {$document: attachments, access: read}, {$document: attachment_context, access: write}]
+  - id: set_jira_in_progress
+    uses: process:jira.rest/transition_issue
+    with: {output_mode: compact, issue_key: "{{inputs.jira_ticket_id}}", site_url: "{{inputs.jira_site_url}}", status_name: "{{inputs.in_progress_status}}", secret_refs: [JIRA_AUTH_HEADER]}
+  - id: sync_trunk_before_branch
+    uses: process:shell/exec
+    with:
+      command: bash
+      args: [source://scripts/sync_branch_before_feature_branch.sh, --repo-path, "{{inputs.repo_path}}", --remote, "{{inputs.git_remote}}", --branch, "{{inputs.trunk_branch}}"]
+  - id: create_branch
+    uses: process:git.cli/ensure_branch
+    with: {output_mode: compact, name: "{{inputs.branch_name}}", default_name: "{{inputs.jira_ticket_id}}", start_point: "{{inputs.trunk_branch}}"}
+  - id: plan_loop
+    module: {ref: plan_review}
+  - id: implementation_loop
+    module:
+      ref: implementation_loop
+      inputs: {stage_model: "{{inputs.implementation_model}}"}
+  - id: check_reviewer_context
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://modules/scripts/reviewer_context.py, capture, --file, {$document: reviewer_context, access: update}]
+  - id: validate_changes
+    uses: process:openspec/verify
+    profile: verify
+    prompt_file: prompts/validate_changes.md
+    with:
+      change_name: "{{inputs.jira_ticket_id}}"
+      model: "{{inputs.validation_model}}"
+      context_files: [{$document: reviewer_context, access: read}, {$document: jira_issue, access: read}, {$document: attachment_context, access: read}, {$document: approved_change, access: read}, {$document: approved_notes, access: read}]
+      report_file: {$document: validation_report, access: write}
+  - id: maybe_address_validation_report
+    control: control.noop
+    if:
+      guard: 'steps.validate_changes.out.passed != true'
+      then: [{ref: validation_remediation_loop}]
+  - id: validation_remediation_loop
+    module: {ref: validation_remediation}
+  - id: check_working_files_before_commit
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://modules/scripts/check_working_files.py, --repo-path, "{{inputs.repo_path}}"]
+  - id: commit_implementation
+    uses: process:git.cli/commit_worktree
+    with:
+      output_mode: compact
+      jira_ticket_id: "{{inputs.jira_ticket_id}}"
+      summary_file: {$document: approved_summary, access: read}
+      add_all: true
+      allow_no_changes: true
+  - id: push_branch
+    uses: process:git.cli/push_current_branch
+    with: {output_mode: compact, remote: "{{inputs.git_remote}}", set_upstream: true}
+  - id: render_pull_request_header
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/render_pr_body_header.py, --jira-ticket-id, "{{inputs.jira_ticket_id}}", --jira-site-url, "{{inputs.jira_site_url}}", --output-file, {$document: pr_body_header, access: write}]
+  - id: export_pull_request_template
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/export_pull_request_template.py, --repo-path, "{{inputs.repo_path}}", --output-file, {$document: pull_request_template, access: write}]
+  - id: draft_pull_request_body
+    uses: process:cursor.cli/exec_task_cli
+    profile: author
+    prompt_file: prompts/draft_pr_body.md
+    with:
+      model: "{{inputs.pr_body_model}}"
+      context_files: [{$document: jira_issue, access: read}, {$document: approved_plan, access: read}, {$document: pr_body_header, access: read}, {$document: approved_pr_body, access: read}, {$document: pull_request_template, access: read}]
+      response_file: {$document: pr_body_prepared, access: write}
+  - id: prepare_pull_request_body
+    uses: process:shell/exec
+    with:
+      command: bash
+      args: [source://scripts/compose_pr_body_for_open.sh, --source-body-file, {$document: pr_body_prepared, access: read}, --output-body-file, {$document: pr_body_for_open, access: write}, --include-transist-pr-callout, "{{inputs.include_transist_pr_callout}}"]
+  - id: open_pull_request
+    uses: process:github.cli/pr_create
+    with:
+      output_mode: compact
+      jira_issue_file: {$document: jira_issue, access: read}
+      jira_title_template: "[{key}] {summary}"
+      body_file: {$document: pr_body_for_open, access: read}
+      labels: [ai-assisted]
+      draft: true
+      output_file: {$document: pr, access: write}
+  - id: set_jira_under_review
+    uses: process:jira.rest/transition_issue
+    with: {output_mode: compact, issue_key: "{{inputs.jira_ticket_id}}", site_url: "{{inputs.jira_site_url}}", status_name: "{{inputs.under_review_status}}", secret_refs: [JIRA_AUTH_HEADER]}
+  - id: pr_review_loop
+    module: {ref: pr_review}
+  - id: merge_pull_request
+    uses: process:github.cli/pr_merge
+    with: {output_mode: compact, method: squash, delete_remote_branch: true, output_file: {$document: pr, access: write}}
+  - id: set_jira_done
+    uses: process:jira.rest/transition_issue
+    with: {output_mode: compact, issue_key: "{{inputs.jira_ticket_id}}", site_url: "{{inputs.jira_site_url}}", status_name: "{{inputs.done_status}}", secret_refs: [JIRA_AUTH_HEADER]}
+  - {id: finish, control: control.finish}
+cleanup:
+  - id: sync_trunk_branch
+    when: [success]
+    uses: process:git.cli/sync_branch_from_pr
+    with: {output_mode: compact, remote: "{{inputs.git_remote}}", pr_file: {$document: pr, access: read}}
+  - id: checkout_trunk_branch
+    when: [success, failed]
+    uses: process:git.cli/checkout_branch
+    with: {output_mode: compact, name: "{{inputs.trunk_branch}}"}
+  - id: delete_local_feature_branch
+    when: [success, failed]
+    uses: process:git.cli/delete_branch
+    with: {output_mode: compact, name: "{{inputs.branch_name}}", default_name: "{{inputs.jira_ticket_id}}", force: true, allow_missing: true}

@@ -1,0 +1,16 @@
+schema: transist.module.v1
+id: cursor_validation_remediation_loop
+version: 0.1.0
+modules:
+  run_validation_remediation_iteration: {path: validation_remediation_iteration.module.yaml}
+steps:
+  - id: validation_remediation_loop
+    control: control.noop
+    loop:
+      body: [{ref: run_validation_remediation_iteration}]
+      until: 'steps.run_validation_remediation_iteration.out.passed == true'
+      max_iters: 5
+      max_duration: 168h
+  - id: run_validation_remediation_iteration
+    module: {ref: run_validation_remediation_iteration, rerun_mode: fresh}
+  - {id: finish, control: control.finish}

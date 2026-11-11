@@ -1,0 +1,141 @@
+schema: transist.module.v1
+id: cursor_pr_review_implementation
+version: 0.1.0
+profiles:
+  author:
+    uses: process:cursor.cli/exec_task_cli
+    with:
+      output_mode: compact
+      history_mode: invocation
+      max_context_file_bytes: 65536
+      max_prompt_bytes: 98304
+      ignore_paths: "{{inputs.ignore_paths}}"
+      timeout_ms: "{{inputs.agent_timeout_ms}}"
+      allowed_tools: "{{inputs.agent_allowed_tools}}"
+      denied_tools: "{{inputs.agent_denied_tools}}"
+      extra_args: "{{inputs.agent_extra_args}}"
+      model: "{{inputs.review_model}}"
+      reasoning_effort: "{{inputs.agent_reasoning_effort}}"
+steps:
+  - id: implement_review_changes
+    uses: process:cursor.cli/exec_task_cli
+    profile: author
+    prompt: |
+      Address unresolved pull request review-thread comments, fresh pull
+      request conversation comments, and explicit operator remediation
+      requests in the current repository.
+
+      Context sections are ordered: reviewer ledger, Jira issue, attachment
+      projection, instruction comments, actionable reviews, validation report,
+      operator feedback, validation-override feedback. Private labels are opaque;
+      document names below describe roles, not workspace or persistent file paths.
+
+      If the PR is already merged, do not change the repository. Explain that no
+      action is needed, but still include the required per-comment response array
+      below; use clarification rather than claiming new code changes.
+
+      Use `review_comments_actionable.json` for requests and current PR state.
+      Prior notes remain in runtime inspection; do not search the workspace for
+      operational files or expired staging paths.
+      `review_comments_actionable.json` contains unresolved
+      review-thread comments plus fresh PR conversation comments, already
+      filtered of prior Transist replies and slash commands.
+
+      Read the run-specific reviewer-context JSONL for operator remediation
+      requests (schema
+      `transist.reviewer_context.v1`). Preserve prior scope instructions unless a
+      later explicit reviewer instruction supersedes them on the same topic.
+      A plain approval does not erase earlier revision requests or prove tests
+      passed. Rejected decisions are not approvals. Do not edit this ledger or
+      invent reviewer decisions. Report the actual changes and verification;
+      do not leave notes saying a file is unchanged when it was modified.
+
+      This subflow can be re-entered with no actionable PR comments. If neither
+      the request projection nor the reviewer ledger supplies a concrete revision
+      request, avoid speculative changes and explain the gap clearly.
+
+      Some reviewer comments only need clarification. When the right response
+      is an explanation rather than a code change, do not invent repository
+      changes. Keep the working tree unchanged and prepare a short GitHub reply
+      that answers the question directly.
+
+      Not every reviewer comment is a call for action. When a comment merely
+      raises an idea, asks you to consider an option, or offers a suggestion,
+      treat it as input to evaluate rather than an instruction to follow. You
+      are not required to agree with every comment by default.
+
+      Exception: if a comment starts with `!!! ` (three exclamation marks plus
+      a trailing space) in its first non-empty line, treat it as mandatory and
+      follow the request in that comment.
+
+      For each non-`!!! ` suggestion comment:
+        - Evaluate the idea or suggestion on its merits against the ticket
+          intent and the approved plan.
+        - If the suggestion is valid and improves the implementation, apply
+          the smallest reasonable code change that adopts it.
+        - If the suggestion is rejected, do not change the code. Instead,
+          post a short GitHub reply that explicitly states the suggestion was
+          rejected with a concrete explanation.
+
+      Direct, actionable requests ("fix this bug", "rename this symbol", "add
+      this test case") should still be addressed as code changes unless they
+      are clearly invalid.
+
+      Return markdown with:
+
+      - first non-empty line: one plain-text line ≤72 characters, imperative
+        mood, summarizing the change; no Jira prefix, no markdown, no preamble
+        (used verbatim as the git commit message)
+      - `## Review Response`
+      - `## Review Replies`
+        Include exactly one fenced `json` array after this heading. Each object
+        must contain:
+        - `comment_id`: the exact comment id from `review_comments_actionable.json`
+        - `outcome`: exactly one of `addressed`, `clarification`, or `rejected`
+        - `reply`: a non-empty string with a short 1-2 sentence explanation
+        Include exactly one result for EVERY actionable comment, including those
+        addressed through code changes. Do not omit or invent comment ids.
+        Use `addressed` only when an actual working-tree change satisfies the
+        request; name the change and its verification in `reply`. Use
+        `clarification` for an explanation or an unresolved/no-change request,
+        and `rejected` for a declined suggestion with a concrete reason.
+        Use `[]` only when there are no actionable comments; always include the
+        heading and fenced array even in that case. Clarification/rejection
+        replies are published by dedicated steps. A review thread is eligible
+        for resolution only when ALL its actionable comments are explicitly
+        `addressed`, and resolution also requires a committed change. Do not
+        claim an outcome that is not supported by the actual working tree.
+      - `## Verification`
+      - `## Risks`
+
+      If `tst_comments.md` contains inline reviewer comments, treat each one
+      as an authoritative, located revision request alongside PR review
+      comments. Apply the change at the indicated `file:line` and remove the
+      `tst:` comment line itself from the working tree after addressing it.
+      Do not leave stale `tst:` markers in the code. Do not include
+      `tst:`-addressed items in the `## Review Replies` array; they are
+      addressed by code changes, not by written replies.
+
+      Do not create git commits, do not push branches, do not open pull
+      requests, and do not rewrite git history. Leave repository changes only
+      in the working tree. The dedicated Transist git and GitHub steps handle
+      commit, push, and PR updates later in the workflow.
+    skills:
+      - skills/code-changes/SKILL.md
+    with:
+      feedback_context_mode: focused
+      context_files:
+        - {$document: reviewer_context, access: read}
+        - {$document: jira_issue, access: read}
+        - {$document: attachment_context, access: read}
+        - {$document: tst_comments, access: read}
+        - {$document: review_comments_actionable, access: read}
+        - {$document: validation_report, access: read}
+        - {$document: operator_feedback, access: read}
+        - {$document: review_cycle_feedback, access: read}
+      response_file: {$document: implementation_notes, access: update}
+      summary_title_file: {$document: change_summary_title, access: write}
+      pr_body_file: {$document: pr_body, access: write}
+
+  - id: finish
+    control: control.finish

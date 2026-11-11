@@ -1,0 +1,129 @@
+schema: transist.module.v1
+id: hotfix_pr_review_changes
+version: 0.1.0
+profiles:
+  author:
+    uses: process:github.copilot.cli/exec_task
+    with:
+      output_mode: compact
+      history_mode: invocation
+      max_context_file_bytes: 65536
+      max_prompt_bytes: 98304
+      ignore_paths: "{{inputs.ignore_paths}}"
+      timeout_ms: "{{inputs.copilot_timeout_ms}}"
+      allowed_tools: "{{inputs.copilot_allowed_tools}}"
+      denied_tools: "{{inputs.copilot_denied_tools}}"
+      extra_args: "{{inputs.copilot_extra_args}}"
+      model: "{{inputs.copilot_model}}"
+      reasoning_effort: "{{inputs.copilot_reasoning_effort}}"
+steps:
+  - id: refresh_branch_from_remote
+    uses: process:git.cli/pull_current_branch
+    with:
+      output_mode: compact
+      remote: "{{inputs.git_remote}}"
+  - id: check_working_files
+    uses: process:shell/exec
+    with:
+      command: python3
+      args:
+        - source://scripts/check_working_files.py
+        - --repo-path
+        - "{{inputs.repo_path}}"
+  - id: scan_tst_comments
+    uses: process:git.cli/scan_instruction_comments
+    with: {output_mode: compact, output_file: {$document: tst_comments, access: write}}
+  # No local gate; review changes are committed and pushed immediately.
+  - id: implement_review_changes
+    uses: process:github.copilot.cli/exec_task
+    profile: author
+    prompt: |
+      Address unresolved pull request review-thread comments, fresh pull
+      request conversation comments, and explicit operator remediation
+      requests in the current repository.
+
+      Context sections are ordered: reviewer ledger, Jira issue, attachment
+      projection, instruction comments, operator feedback, pending review requests.
+      Staging labels are opaque; names below describe logical document roles.
+
+      If the PR is already merged, do not change the repository and respond with
+      a short note that no action is needed.
+
+      Use `review_comments.json` for complete requests and current PR state.
+      It is a concise projection with exact IDs and locations, without transport
+      output or duplicated diff bodies. Prior notes remain in runtime inspection;
+      do not search the workspace for operational context or expired staging paths.
+      `review_comments.json` may contain both unresolved review-thread
+      comments and PR conversation comments created since the previous
+      successful review-cycle fetch, including pending pre-gate conversation
+      requests retained across the post-gate refresh. Review-thread requests
+      reflect the complete current unresolved fetch; resolved threads are removed.
+      Do not recreate requests from earlier implementation notes.
+      Read `operator_feedback.md` for
+      explicit operator requests from the outer PR review gate; if that file
+      is empty, treat it as absent. This module may be re-entered even when
+      `review_comments.json` is empty, so handle that case conservatively: if
+      there is no concrete machine-readable review request, avoid speculative
+      code changes and explain the gap clearly in the response.
+
+      Exception: if a comment starts with `!!! ` (three exclamation marks plus
+      a trailing space) in its first non-empty line, treat it as mandatory and
+      follow the request in that comment.
+
+      Return markdown with:
+
+      - first non-empty line: one plain-text line ≤72 characters, imperative
+        mood, summarizing the change; no Jira prefix, no markdown, no preamble
+        (the workflow uses a fixed "review changes" commit message for this cycle)
+      - `## Review Response`
+      - `## Verification`
+      - `## Risks`
+
+      If `tst_comments.md` contains inline reviewer comments, treat each one
+      as an authoritative, located revision request alongside PR review
+      comments. Apply the change at the indicated `file:line` and remove the
+      `tst:` comment line itself from the working tree after addressing it. Do
+      not leave stale `tst:` markers in the code.
+
+      Do not create git commits, do not push branches, do not open pull
+      requests, and do not rewrite git history. Leave repository changes only
+      in the working tree. The dedicated Transist git and GitHub steps handle
+      commit, push, and PR updates later in the workflow.
+    skills:
+      - skills/code-changes/SKILL.md
+    with:
+      feedback_context_mode: focused
+      context_files:
+        - {$document: reviewer_context, access: read}
+        - {$document: jira_issue, access: read}
+        - {$document: attachment_context, access: read}
+        - {$document: tst_comments, access: read}
+        - {$document: operator_feedback, access: read}
+        - {$document: review_comments, access: read}
+      response_file: {$document: implementation_notes, access: update}
+      summary_title_file: {$document: change_summary_title, access: write}
+      pr_body_file: {$document: pr_body, access: write}
+  - id: check_working_files_before_commit
+    uses: process:shell/exec
+    with:
+      command: python3
+      args:
+        - source://scripts/check_working_files.py
+        - --repo-path
+        - "{{inputs.repo_path}}"
+  - id: commit_review_changes
+    uses: process:git.cli/commit_worktree
+    with:
+      output_mode: compact
+      jira_ticket_id: "{{inputs.jira_ticket_id}}"
+      message: "review changes"
+      add_all: true
+      allow_no_changes: true
+  - id: push_review_changes
+    uses: process:git.cli/push_current_branch
+    with:
+      output_mode: compact
+      remote: "{{inputs.git_remote}}"
+      set_upstream: false
+  - id: finish
+    control: control.finish

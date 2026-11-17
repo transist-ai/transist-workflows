@@ -155,6 +155,12 @@ def path_allowed(relative: PurePosixPath) -> bool:
     if display in {
         ".github/workflows/validate.yml",
         ".github/pull_request_template.md",
+        ".github/rulesets/linear-pr-branches.json",
+        ".github/rulesets/main-branch-protection.json",
+        ".github/rulesets/main-dco-signoff.json",
+        ".github/rulesets/v-tag-protection.json",
+        ".github/rulesets/README.md",
+        ".github/repository-settings.json",
     }:
         return True
     return relative.suffix in SUFFIXES and (

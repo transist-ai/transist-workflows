@@ -43,8 +43,8 @@ class PublicExamplesTests(unittest.TestCase):
         """All six canary participants request the same fixed text explicitly."""
         example = ROOT / "examples" / "ai_agent_plugins_canary"
         document = yaml.safe_load((example / "workflow.yaml").read_text())
-        self.assertEqual(document["version"], "0.1.4")
-        self.assertEqual(document["plugins"]["ollama.cli"], "0.1.1")
+        self.assertEqual(document["version"], "0.1.5")
+        self.assertEqual(document["plugins"]["ollama.cli"], "0.1.2")
         self.assertEqual(document["plugins"]["cursor.cli"], "0.1.0")
         self.assertEqual(document["network"]["mode"], "none")
         self.assertEqual(document["workspace"]["access"], "read_only")

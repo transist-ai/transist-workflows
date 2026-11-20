@@ -3,7 +3,7 @@ id: approved_draft_publication
 version: 0.1.0
 plugins:
   shell: 0.1.0
-  openai.compatible: 0.1.0
+  openai.compatible: 0.1.1
   github.cli: 0.1.0
 inputs:
   workspace_path: {type: string, required: true}

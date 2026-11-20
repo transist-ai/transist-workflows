@@ -3,7 +3,7 @@ id: diagnostic_advisory
 version: 0.1.0
 plugins:
   shell: 0.1.0
-  openai.compatible: 0.1.0
+  openai.compatible: 0.1.1
 inputs:
   workspace_path: {type: string, required: true}
   model: {type: string, required: true}

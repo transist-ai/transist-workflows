@@ -43,7 +43,7 @@ class PublicExamplesTests(unittest.TestCase):
         """All six canary participants request the same fixed text explicitly."""
         example = ROOT / "examples" / "ai_agent_plugins_canary"
         document = yaml.safe_load((example / "workflow.yaml").read_text())
-        self.assertEqual(document["version"], "0.1.3")
+        self.assertEqual(document["version"], "0.1.4")
         self.assertEqual(document["plugins"]["ollama.cli"], "0.1.1")
         self.assertEqual(document["plugins"]["cursor.cli"], "0.1.0")
         self.assertEqual(document["network"]["mode"], "none")
@@ -99,7 +99,7 @@ class PublicExamplesTests(unittest.TestCase):
     def test_edge_completion_token_budget(self) -> None:
         """The advisory forwards its explicit completion-token budget unchanged."""
         flow = checker.load_yaml(ROOT / "examples/edge_fault_advisory/workflow.yaml")
-        self.assertEqual(flow["version"], "0.1.0")
+        self.assertEqual(flow["version"], "0.1.1")
         step = next(step for step in flow["steps"] if step["id"] == "advise")
         self.assertEqual(step["with"]["max_completion_tokens"], 512)
         self.assertNotIn("max_tokens", step["with"])

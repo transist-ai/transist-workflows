@@ -112,8 +112,8 @@ class EdgeRunnerTests(unittest.TestCase):
     def test_gate_binds_exact_document_revision(self) -> None:
         """Capture, gate and provider connect through managed document bindings."""
         workflow = yaml.safe_load((EXAMPLE / "workflow.yaml").read_text())
-        self.assertEqual(workflow["version"], "0.1.0")
-        self.assertEqual(runner.WORKFLOW, "edge_fault_advisory@0.1.0")
+        self.assertEqual(workflow["version"], "0.1.1")
+        self.assertEqual(runner.WORKFLOW, "edge_fault_advisory@0.1.1")
         steps = {step["id"]: step for step in workflow["steps"]}
         gate = steps["diagnostic_transfer"]
         self.assertEqual(gate["control"], "control.gate.manual")

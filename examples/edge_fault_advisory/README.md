@@ -25,7 +25,7 @@ With the two exact plugins installed in an explicit authoring home, reproduce it
 
 ## Expected result
 
-`edge_fault_advisory@0.1.0` runs `shell/read_file` → manual document review →
+`edge_fault_advisory@0.1.1` runs `shell/read_file` → manual document review →
 `openai.compatible/chat_complete`. The workspace is read-only. `diagnostic_path`
 defaults to `diagnostics.txt`; `workspace_path` and an account-supported `model`
 are required. The bounded UTF-8 capture becomes the runtime-owned `diagnostic`
@@ -52,7 +52,7 @@ remains a failed run. There is no revision loop or automatic approval.
 ## Validation and deliberate execution
 
 Requirements: the verified public Transist 0.1.1 binary, Python 3.11 with the pinned
-dependencies, and `shell@0.1.0` / `openai.compatible@0.1.0` manifests from the
+dependencies, and `shell@0.1.0` / `openai.compatible@0.1.1` manifests from the
 matching plugin checkout. Supply credentials externally through the runtime
 secret provider, never through inputs, prompt text or documents.
 

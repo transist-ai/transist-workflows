@@ -1,7 +1,7 @@
-Workflow: edge_fault_advisory@0.1.0
-Definition: 04c27154abefa9b62c24b974bfc88950360da1b2a1dd9a12326876095323a815
+Workflow: edge_fault_advisory@0.1.1
+Definition: 186f7da80ecc72198ba0becb4b0c951f1a021bea263a41abe3be44ab631380fe
 Static explanation; authority requested, not granted; external behavior opaque.
-Pins: openai.compatible@0.1.0 (resolved), shell@0.1.0 (resolved)
+Pins: openai.compatible@0.1.1 (resolved), shell@0.1.0 (resolved)
 Inputs: diagnostic_path=default, model=missing, workspace_path=missing
 Workspace: {"access":"read_only","path":"{{inputs.workspace_path}}"}
 Root network: {"max_redirects":0,"mode":"none","tls_required":false}

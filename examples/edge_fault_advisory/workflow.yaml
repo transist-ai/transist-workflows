@@ -1,9 +1,9 @@
 schema: transist.flow.v1
 id: edge_fault_advisory
-version: 0.1.0
+version: 0.1.1
 plugins:
   shell: 0.1.0
-  openai.compatible: 0.1.0
+  openai.compatible: 0.1.1
 inputs:
   workspace_path:
     type: string

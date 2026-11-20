@@ -16,7 +16,7 @@ import yaml
 
 EXAMPLE = Path(__file__).resolve().parent
 REPO = EXAMPLE.parents[1]
-WORKFLOW = "edge_fault_advisory@0.1.0"
+WORKFLOW = "edge_fault_advisory@0.1.1"
 
 
 def manifest(value: str, plugin_id: str, version: str) -> Path:
@@ -132,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         if not binary.is_file() or not os.access(binary, os.X_OK):
             raise ValueError("--transist must select an executable")
         shell = manifest(args.shell_manifest, "shell", "0.1.0")
-        openai = manifest(args.openai_manifest, "openai.compatible", "0.1.0")
+        openai = manifest(args.openai_manifest, "openai.compatible", "0.1.1")
         workspace = args.workspace.expanduser().resolve(strict=True)
         if not workspace.is_dir():
             raise ValueError("--workspace must select an existing directory")

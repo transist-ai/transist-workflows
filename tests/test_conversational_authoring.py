@@ -28,7 +28,10 @@ class AuthoringFixtureTests(unittest.TestCase):
         for name in authoring.INVENTORY:
             path = authoring.FIXTURES / name / "workflow.yaml"
             flow, pins, actions = inspect_graph(path)
-            self.assertEqual(set(pins.values()), {"0.1.0"})
+            self.assertEqual(pins["openai.compatible"], "0.1.1")
+            self.assertTrue(
+                all(version in {"0.1.0", "0.1.1"} for version in pins.values())
+            )
             self.assertEqual(flow["workspace"]["access"], "read_only")
             self.assertIn("process:openai.compatible/chat_complete", actions)
             self.assertIn("process:shell/read_file", actions)

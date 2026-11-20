@@ -9,7 +9,7 @@ cleanup, and stop if any participant fails.
 ## Generated workflow explanation
 
 The [explanation snapshot](explanation.txt) is a deterministic projection
-of `workflows explain` JSON for the current `0.1.4` source. Earlier installed
+of `workflows explain` JSON for the current `0.1.5` source. Earlier installed
 packages may contain the preceding token-limit contract. The installed
 fixture regenerates it twice and requires exact bytes. Full raw JSON
 retains platform-specific package/contract digests; the portable snapshot displays
@@ -33,7 +33,7 @@ does not scan source or create delivery working-file guards. Validate the
 completed plugin schemas separately before treating authored graph checks as
 installed-schema compatibility.
 
-`ai_agent_plugins_canary@0.1.4` invokes six providers sequentially:
+`ai_agent_plugins_canary@0.1.5` invokes six providers sequentially:
 Copilot → OpenCode → Ollama → Cursor → Anthropic → OpenAI-compatible. Each is asked to return
 `AI agent plugin canary: OK.` One action failure stops the workflow; later
 providers are not tested. There are no retries or cleanup steps.
@@ -48,7 +48,7 @@ A successful run alone does not prove the requested exact text was returned.
 | --- | --- | --- |
 | `github.copilot.cli` | `0.1.0` | Python, `gh`, `copilot`, the wrapper's `gh copilot` command surface, GitHub/Copilot authentication |
 | `opencode.cli` | `0.1.0` | Python, OpenCode CLI, OpenRouter account/model access |
-| `ollama.cli` | `0.1.1` | Its compiled Go adapter, Ollama CLI/server, an already-pulled local model |
+| `ollama.cli` | `0.1.2` | Its compiled Go adapter, Ollama CLI/server, an already-pulled local model |
 | `cursor.cli` | `0.1.0` | Python, Cursor Agent CLI and existing login/model access |
 | `anthropic` | `0.1.0` | Python, Anthropic Console API key, API billing and native model access |
 | `openai.compatible` | `0.1.1` | Python, OpenRouter or OpenAI API account, model access and matching API key |
@@ -157,10 +157,10 @@ Review and enable process secret delivery only in that evaluation home. Check
 installed readiness with the intended inputs before deciding to execute:
 
 ```sh
-"$TRANSIST_BIN" workflows check ai_agent_plugins_canary@0.1.4 --live \
+"$TRANSIST_BIN" workflows check ai_agent_plugins_canary@0.1.5 --live \
   --inputs-file /path/to/local-inputs.yaml --home "$RUN_HOME"
 # After successful readiness and explicit review of all provider effects:
-"$TRANSIST_BIN" workflows run ai_agent_plugins_canary@0.1.4 \
+"$TRANSIST_BIN" workflows run ai_agent_plugins_canary@0.1.5 \
   --inputs-file /path/to/local-inputs.yaml --home "$RUN_HOME"
 ```
 
@@ -178,8 +178,14 @@ the plugin underneath an existing pinned run; validate and deliver an immutable
 new release or use an isolated evaluation home. Completion budgets can include
 reasoning tokens, so a 64-token budget does not guarantee visible answer text.
 
-The checked-in workflow pins `ollama.cli` and `openai.compatible` at `0.1.1`
-and its other four plugins at `0.1.0`. Action-bound profiles
+The checked-in workflow pins `ollama.cli@0.1.2`, `openai.compatible@0.1.1`
+and its other four plugins at `0.1.0`. The `0.1.5` canary adopts the rebuilt
+Ollama wrapper with a verified macOS executable signature. Build it using its
+package's `build.sh`, not a stale ignored binary. This does not alter prompts,
+inputs or authority. Existing `0.1.4` installs retain their `0.1.1` pin; they are
+not repaired by editing this source. Governed adoption requires a newly signed
+plugin and workflow package, validated in a fresh home with reviewed authority.
+Do not re-sign or overwrite an installed executable in place. Action-bound profiles
 select repeated prompt/lean settings from shared immutable context values. A
 profile cannot select another action or widen authority; networks, logical secret
 references and Cursor's exact state-write request remain on explicit steps. The

@@ -62,6 +62,47 @@ class SnapshotTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue(gate.path_allowed(PurePosixPath(name)))
 
+    def test_ruleset_metadata_is_public(self) -> None:
+        """Admit only the six snapshot paths through the full content gate."""
+        names = [
+            ".github/rulesets/linear-pr-branches.json",
+            ".github/rulesets/main-branch-protection.json",
+            ".github/rulesets/main-dco-signoff.json",
+            ".github/rulesets/v-tag-protection.json",
+            ".github/rulesets/README.md",
+            ".github/repository-settings.json",
+        ]
+        for name in names:
+            with self.subTest(name=name):
+                self.assertEqual(self.check(name, b"{}\n"), [])
+                self.assertTrue(self.check(name, b"ghp_" + b"x" * 30))
+
+    def test_other_github_metadata_is_rejected_before_read(self) -> None:
+        """Snapshot exceptions must not admit sibling paths or nested variants."""
+        names = [
+            ".github/README.md",
+            ".github/other.json",
+            ".github/workflows/other.yml",
+            ".github/rulesets/other.json",
+            ".github/rulesets/main-branch-protection.yaml",
+            ".github/rulesets/main-branch-protection.json.bak",
+            ".github/rulesets/main-branch-protection.json/extra.json",
+            ".github/rulesets/nested/main-branch-protection.json",
+            ".github/rulesets/readme.md",
+            ".github/rulesets/repository-settings.json",
+            ".github/repository-settings.yaml",
+            ".github/repository-settings.json/extra.json",
+        ]
+        with patch.object(
+            Path, "lstat", side_effect=AssertionError("must not inspect")
+        ):
+            for name in names:
+                with self.subTest(name=name):
+                    self.assertFalse(gate.path_allowed(PurePosixPath(name)))
+                    errors = gate.check_file(self.root, PurePosixPath(name), set())
+                    self.assertEqual(len(errors), 1)
+                    self.assertIn("disallowed public path", errors[0])
+
     def test_reject_paths_before_any_read(self) -> None:
         """Disallowed paths cannot cause private-tree filesystem inspection."""
         names = [

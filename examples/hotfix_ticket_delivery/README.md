@@ -82,13 +82,20 @@ The ledger is model context, not authority. Terminal rejected decisions remain i
 the runtime's immutable gate history; no post-rejection model work runs.
 
 The first implementation pass receives empty inline-comment context and does not
-scan the repository for `tst:` markers. After implementation review requests
+scan the repository. After implementation review requests
 changes, the workflow scans the reviewed working tree and publishes complete
 inline-comment context for the next implementation pass. Approval exits without
 scanning; rejection stops without further model or scanner work. Each pass has a
 fresh child identity and inherits the published reviewer ledger and comments.
 The `max_iters: 5` and 16-hour bounds are unchanged. An explicit approval check
 after the loop prevents exhaustion from advancing to commit or PR creation.
+Set the optional root input `comment_marker` (for example, `"comment_marker": "review:"`
+in the run inputs JSON) to use a different marker in implementation and PR review.
+The default is `tst:`. The scanner trims surrounding whitespace from the marker,
+validates it, and matches it literally, ignoring case, after a supported leading
+comment delimiter (for example, `# Review: add a test`). Scan results give source
+locations in the `tst_comments` managed document; that identifier is not a
+workspace filename.
 Both scans use `git.cli@0.2.0` changed-file scope. A separate `shell/exec` step
 fetches the configured remote's effective PR base into its tracking ref before
 branch creation and each implementation scan; new feature branches start at that

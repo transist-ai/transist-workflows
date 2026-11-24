@@ -24,7 +24,7 @@ steps:
       args: [source://scripts/fetch_scan_base.py, --remote, "{{inputs.git_remote}}", --branch, "{{inputs.pr_base_branch}}", --fallback-branch, "{{inputs.trunk_branch}}", --pr-file, {$document: pr, access: read}]
   - id: scan_tst_comments
     uses: process:git.cli/scan_instruction_comments
-    with: {output_mode: compact, scope: changed, pr_file: {$document: pr, access: read}, remote: "{{inputs.git_remote}}", output_file: {$document: tst_comments, access: write}}
+    with: {output_mode: compact, scope: changed, marker: "{{inputs.comment_marker}}", pr_file: {$document: pr, access: read}, remote: "{{inputs.git_remote}}", output_file: {$document: tst_comments, access: write}}
   - id: review_implementation_loop
     module: {ref: review_implementation_loop, rerun_mode: fresh}
   - id: plan_review_responses

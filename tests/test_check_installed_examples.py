@@ -46,15 +46,20 @@ class InstalledCheckerTests(unittest.TestCase):
 
     def test_delivery_baseline_and_pr_base_fixture(self) -> None:
         """The changed instruction source and PR base exclude an oversized baseline."""
+        marker = delivery.COMMENT_MARKER.strip().casefold()
         with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
             target = Path(temporary) / "target"
             with patch.object(delivery, "git") as git:
                 delivery.workspace(target, cursor=False)
-            self.assertNotIn("tst:", (target / "src/delivery.txt").read_text())
+            self.assertNotIn(marker, (target / "src/delivery.txt").read_text())
             self.assertEqual(
                 (target / "src/unchanged-large.txt").stat().st_size, 32 * 1024 * 1024
             )
-            self.assertIn("tst:", INSTRUCTION_SOURCE)
+            self.assertNotEqual(marker, "tst:")
+            self.assertTrue(INSTRUCTION_SOURCE.casefold().startswith(f"# {marker}"))
+            self.assertTrue(
+                delivery.PR_INSTRUCTION.casefold().startswith(f"# {marker}")
+            )
             self.assertFalse((target / "src/pr-review.txt").exists())
             self.assertEqual(
                 (target / "src/release-only.txt").read_text(),
@@ -80,25 +85,36 @@ class InstalledCheckerTests(unittest.TestCase):
 
     def test_changes_preserves_requests_until_the_authored_review_scan(self) -> None:
         """Only the post-review iteration can require the real scanner's context."""
-        handler = object.__new__(Service)
-        fixture = fixture_state("cursor_ticket_delivery", "changes")
-        handler.server = Mock(fixture=fixture)
-        prompt = '{"root_run_id":"fixture-review-scan"}'
-        first = handler.agent({"args": ["-p", prompt]})
-        self.assertTrue(
-            first["write_files"]["src/delivery.txt"].startswith(INSTRUCTION_SOURCE)
-        )
-        with self.assertRaisesRegex(checker.CheckError, "real scanner's located"):
-            handler.agent({"args": ["-p", prompt]})
-        fixture["agents"]["implement"] = 1
-        second = handler.agent(
-            {"args": ["-p", prompt + "\nsrc/delivery.txt:1: hash-request"]}
-        )
-        self.assertNotIn("tst:", second["write_files"]["src/delivery.txt"])
-        self.assertEqual(
-            second["write_files"]["src/pr-review.txt"], delivery.PR_INSTRUCTION
-        )
-        self.assertNotIn("hash-request", second["write_files"]["src/delivery.txt"])
+        for workflow in ("cursor_ticket_delivery", "hotfix_ticket_delivery"):
+            with self.subTest(workflow=workflow):
+                handler = object.__new__(Service)
+                fixture = fixture_state(workflow, "changes")
+                handler.server = Mock(fixture=fixture)
+                prompt = '{"root_run_id":"fixture-review-scan"}'
+                first = handler.agent({"args": ["-p", prompt]})
+                self.assertTrue(
+                    first["write_files"]["src/delivery.txt"].startswith(
+                        INSTRUCTION_SOURCE
+                    )
+                )
+                with self.assertRaisesRegex(
+                    checker.CheckError, "real scanner's located"
+                ):
+                    handler.agent({"args": ["-p", prompt]})
+                located = prompt + "\nsrc/delivery.txt:1: hash-request"
+                fixture["agents"]["implement"] = 1
+                with self.assertRaisesRegex(checker.CheckError, "non-instruction"):
+                    handler.agent(
+                        {"args": ["-p", located + "\ndefault-implementation-decoy"]}
+                    )
+                fixture["agents"]["implement"] = 1
+                second = handler.agent({"args": ["-p", located]})
+                self.assertNotIn(
+                    "hash-request", second["write_files"]["src/delivery.txt"]
+                )
+                self.assertEqual(
+                    second["write_files"]["src/pr-review.txt"], delivery.PR_INSTRUCTION
+                )
 
     def test_pr_review_agent_requires_distinct_located_instruction(self) -> None:
         """Both review agents must receive the real PR scan's distinct request."""
@@ -115,16 +131,14 @@ class InstalledCheckerTests(unittest.TestCase):
                 )
                 with self.assertRaisesRegex(checker.CheckError, "PR scanner"):
                     handler.agent({"args": ["-p", prompt]})
-                result = handler.agent(
-                    {
-                        "args": [
-                            "-p",
-                            prompt + "\nsrc/pr-review.txt:1: pr-review-request",
-                        ]
-                    }
+                located = prompt + "\nsrc/pr-review.txt:1: pr-review-request"
+                with self.assertRaisesRegex(checker.CheckError, "used default marker"):
+                    handler.agent({"args": ["-p", located + "\ndefault-pr-decoy"]})
+                result = handler.agent({"args": ["-p", located]})
+                self.assertEqual(
+                    result["write_files"]["src/pr-review.txt"],
+                    "PR review request addressed\n",
                 )
-                self.assertNotIn("tst:", result["write_files"]["src/delivery.txt"])
-                self.assertNotIn("tst:", result["write_files"]["src/pr-review.txt"])
 
     def test_fake_pr_creation_requires_the_actual_base(self) -> None:
         """The peer rejects creation against trunk or an implicit provider default."""

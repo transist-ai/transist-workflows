@@ -37,7 +37,7 @@ steps:
       args: [source://scripts/fetch_scan_base.py, --remote, "{{inputs.git_remote}}", --branch, "{{inputs.pr_base_branch}}", --fallback-branch, "{{inputs.trunk_branch}}", --pr-file, {$document: pr, access: read}]
   - id: scan_tst_comments
     uses: process:git.cli/scan_instruction_comments
-    with: {output_mode: compact, scope: changed, pr_file: {$document: pr, access: read}, remote: "{{inputs.git_remote}}", output_file: {$document: tst_comments, access: write}}
+    with: {output_mode: compact, scope: changed, marker: "{{inputs.comment_marker}}", pr_file: {$document: pr, access: read}, remote: "{{inputs.git_remote}}", output_file: {$document: tst_comments, access: write}}
   # No local gate; review changes are committed and pushed immediately.
   - id: implement_review_changes
     uses: process:github.copilot.cli/exec_task
@@ -49,25 +49,26 @@ steps:
 
       Context sections are ordered: reviewer ledger, Jira issue, attachment
       projection, instruction comments, operator feedback, pending review requests.
-      Staging labels are opaque; names below describe logical document roles.
+      Identify these sections by their order and contents; staging labels are
+      opaque and are not workspace filenames.
 
       If the PR is already merged, do not change the repository and respond with
       a short note that no action is needed.
 
-      Use `review_comments.json` for complete requests and current PR state.
-      It is a concise projection with exact IDs and locations, without transport
-      output or duplicated diff bodies. Prior notes remain in runtime inspection;
-      do not search the workspace for operational context or expired staging paths.
-      `review_comments.json` may contain both unresolved review-thread
+      Use the pending review requests section for complete requests and current
+      PR state. It is a concise projection with exact IDs and locations, without
+      transport output or duplicated diff bodies. Prior notes remain in runtime
+      inspection; do not search the workspace for operational context or expired
+      staging paths.
+      The projection may contain both unresolved review-thread
       comments and PR conversation comments created since the previous
       successful review-cycle fetch, including pending pre-gate conversation
       requests retained across the post-gate refresh. Review-thread requests
       reflect the complete current unresolved fetch; resolved threads are removed.
       Do not recreate requests from earlier implementation notes.
-      Read `operator_feedback.md` for
-      explicit operator requests from the outer PR review gate; if that file
-      is empty, treat it as absent. This module may be re-entered even when
-      `review_comments.json` is empty, so handle that case conservatively: if
+      Read the operator feedback section for explicit requests from the outer PR
+      review gate; if it is empty, treat it as absent. This module may be re-entered
+      even when the pending review requests section is empty, so if
       there is no concrete machine-readable review request, avoid speculative
       code changes and explain the gap clearly in the response.
 
@@ -84,11 +85,11 @@ steps:
       - `## Verification`
       - `## Risks`
 
-      If `tst_comments.md` contains inline reviewer comments, treat each one
-      as an authoritative, located revision request alongside PR review
-      comments. Apply the change at the indicated `file:line` and remove the
-      `tst:` comment line itself from the working tree after addressing it. Do
-      not leave stale `tst:` markers in the code.
+      Treat each entry in the scanned instruction comments context as an
+      authoritative, located revision request alongside PR review comments.
+      Apply the change at the indicated source `file:line`, then remove the
+      corresponding instruction comment from that source file. Do not remove
+      unrelated comments or treat them as requests.
 
       Do not create git commits, do not push branches, do not open pull
       requests, and do not rewrite git history. Leave repository changes only

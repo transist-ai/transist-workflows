@@ -1,8 +1,8 @@
 {
   "workflow": "cursor_ticket_delivery",
   "version": "0.1.1",
-  "definition_sha256": "501f6849b71cef2088b500100a3fe9d13acd3bd5849e643f622bd99f31dbc2d4",
-  "projection_sha256": "3f6d7e466299bcef0f538f8e9d9d02e7c88096a0a3d86ef938000f8e082eef33",
+  "definition_sha256": "b105dfff1f8e29f25d2b55b805cb3cee90ad60d4a2d3a81048793c0c5a42e9ac",
+  "projection_sha256": "cc66aee0b2e3e1182951f4337008d3d0cef5991cca3f8324b25bfa7cfb9c28cc",
   "projection": "scripts/explanation_snapshot.py",
   "reports_compared": 2
 }

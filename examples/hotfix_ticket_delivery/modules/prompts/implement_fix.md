@@ -17,10 +17,10 @@ If the feedback rejects a specific tactic such as skipping tests, remove that
 tactic and replace it with a compliant implementation rather than defending the
 previous approach.
 
-If `tst_comments.md` contains inline reviewer comments, treat each one as an
-authoritative, located revision request. Apply the change at the indicated
-`file:line`. Remove the `tst:` comment line itself from the working tree after
-addressing it. Do not leave stale `tst:` markers in the code.
+Treat each entry in the scanned instruction comments context as an authoritative,
+located revision request. Apply the change at the indicated source `file:line`,
+then remove the corresponding instruction comment from that source file. Do not
+remove unrelated comments or treat them as requests.
 
 Make the required repository changes. Then return markdown with:
 
@@ -40,5 +40,6 @@ do not rewrite git history. Leave repository changes only in the working tree.
 The dedicated Transist git and GitHub steps handle commit, push, and PR
 creation later in the workflow.
 Context sections are ordered: reviewer ledger, Jira issue, attachment projection,
-instruction comments. Their staging labels are opaque; names below are roles,
-not workspace file paths. The current draft may be included separately as feedback.
+instruction comments. Identify these sections by their order and contents;
+staging labels are not workspace filenames. The current draft may be included
+separately as feedback.

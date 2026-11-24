@@ -1,8 +1,8 @@
 {
   "workflow": "hotfix_ticket_delivery",
   "version": "0.1.1",
-  "definition_sha256": "d241cb9013931ddf006528add15470111ec965b5d4559d2144bd28ecd87fd8ef",
-  "projection_sha256": "78fdb92703100f18d0ee7754d50fc41b7b1f3d2b5ddead20de074a0f8a058194",
+  "definition_sha256": "4f67b2e4bc1c4eb0cb8e1757982156b16249644886d087c71565edb47254e64d",
+  "projection_sha256": "816f42ad4be23991811f6e85cb6d7f8819559b15a192ee66bef7da7676d3335b",
   "projection": "scripts/explanation_snapshot.py",
   "reports_compared": 2
 }

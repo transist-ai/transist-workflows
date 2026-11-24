@@ -90,13 +90,19 @@ Plan review snapshots plan and OpenSpec metadata revisions. Local `reviewed_by`
 reads enforce that exact approval while exporting root-shared approved handoffs
 and copying the approved plan into `openspec/changes/<ticket-slug>/plan.md`.
 The first implementation pass uses empty inline-comment context, without scanning
-for `tst:` markers. Only a subsequent implementation-review request for changes
+the repository. Only a subsequent implementation-review request for changes
 triggers a scan, publishing comment context for the next fresh iteration. Approval
 exports the exact reviewed documents without scanning; rejection stops. The
 `max_iters: 5` and 16-hour limits remain unchanged, with an explicit post-loop
 approval check before downstream validation, commits or PR creation. Stage-specific
 models and the prior reviewer ledger remain available across fresh iterations.
 PR-review scans remain after PR creation and the request to remediate its review.
+Set the optional root input `comment_marker` (for example, `"comment_marker": "review:"`
+in the run inputs JSON) to use a different marker in both stages. The default is
+`tst:`. The scanner trims surrounding whitespace from the marker, validates it,
+and matches it literally, ignoring case, after a supported leading comment
+delimiter (for example, `# Review: add a test`). Scan results give source locations
+in the `tst_comments` managed document; that identifier is not a workspace filename.
 Both scans use `git.cli@0.2.0` changed-file scope. A separate `shell/exec` step
 fetches the configured remote's effective PR base into its tracking ref before
 branch creation and each implementation scan; new feature branches start at that

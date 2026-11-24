@@ -15,8 +15,8 @@ steps:
       else: [{ref: scan_from_pr_base}]
   - id: scan_from_trunk
     uses: process:git.cli/scan_instruction_comments
-    with: {output_mode: compact, scope: changed, base_ref: "refs/remotes/{{inputs.git_remote}}/{{inputs.trunk_branch}}", output_file: {$document: tst_comments, access: write}}
+    with: {output_mode: compact, scope: changed, marker: "{{inputs.comment_marker}}", base_ref: "refs/remotes/{{inputs.git_remote}}/{{inputs.trunk_branch}}", output_file: {$document: tst_comments, access: write}}
   - id: scan_from_pr_base
     uses: process:git.cli/scan_instruction_comments
-    with: {output_mode: compact, scope: changed, base_ref: "refs/remotes/{{inputs.git_remote}}/{{inputs.pr_base_branch}}", output_file: {$document: tst_comments, access: write}}
+    with: {output_mode: compact, scope: changed, marker: "{{inputs.comment_marker}}", base_ref: "refs/remotes/{{inputs.git_remote}}/{{inputs.pr_base_branch}}", output_file: {$document: tst_comments, access: write}}
   - {id: finish, control: control.finish}

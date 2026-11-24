@@ -57,6 +57,7 @@ inputs:
   jira_site_url: {type: string, default: ""}
   branch_name: {type: string, default: ""}
   git_remote: {type: string, default: origin}
+  comment_marker: {type: string, default: 'tst:'}
   trunk_branch: {type: string, default: master}
   pr_base_branch: {type: string, default: "", description: Authorized PR base; empty uses trunk_branch.}
   required_pr_approvals: {type: number, default: 1}

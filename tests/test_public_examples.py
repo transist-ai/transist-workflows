@@ -192,6 +192,10 @@ class PublicExamplesTests(unittest.TestCase):
             root = checker.load_yaml(owner / "workflow.yaml")
             self.assertEqual(root["version"], "0.1.1")
             self.assertEqual(root["plugins"]["git.cli"], "0.2.0")
+            marker = root["inputs"]["comment_marker"]
+            self.assertEqual(marker["type"], "string")
+            self.assertEqual(marker["default"], "tst:")
+            self.assertFalse(marker.get("required", False))
             root_steps = {step["id"]: step for step in root["steps"]}
             self.assertEqual(
                 root_steps["create_branch"]["if"],
@@ -235,6 +239,7 @@ class PublicExamplesTests(unittest.TestCase):
                 )
             self.assertEqual(root["steps"][0]["id"], "initialize_reviewer_context")
             self.assertEqual(root["steps"][1]["id"], "check_working_files")
+            scan_calls = 0
             for path in [
                 owner / "workflow.yaml",
                 *sorted((owner / "modules").glob("*.yaml")),
@@ -242,8 +247,9 @@ class PublicExamplesTests(unittest.TestCase):
                 doc = checker.load_yaml(path)
                 for index, step in enumerate(doc["steps"]):
                     if step.get("uses") == "process:git.cli/scan_instruction_comments":
+                        scan_calls += 1
                         self.assertEqual(
-                            step["uses"], "process:git.cli/scan_instruction_comments"
+                            step["with"]["marker"], "{{inputs.comment_marker}}"
                         )
                         self.assertEqual(
                             step["with"]["output_file"],
@@ -292,6 +298,7 @@ class PublicExamplesTests(unittest.TestCase):
                     doc.get("inputs", {}).get("ignore_paths", {}).get("default", [])
                 )
                 self.assertNotIn(".transist", str(patterns))
+            self.assertEqual(scan_calls, 3)
             self.assertFalse((owner / "modules/scripts/scan_tst_comments.py").exists())
 
     def test_hotfix_scans_inline_comments_only_after_requested_review_changes(

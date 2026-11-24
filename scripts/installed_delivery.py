@@ -48,14 +48,18 @@ REQUEST = "  Preserve this pre-gate request.\nExact caf\u00e9 scope.  "
 REPLY = "The requested boundary is retained; this is a synthetic clarification."
 URL = "https://github.com/fixture/fixture/pull/7"
 DIFF_HEADER = "@@ -1 +1 @@"
+# The changes scenario overrides the workflow default. Mixed case and padding
+# exercise scanner normalization; default-marker decoys must not reach the model.
+COMMENT_MARKER = "  review:  "
 # Keep the synthetic located requests until the first request-changes gate has
 # caused the real scanner to publish them for the next implementation iteration.
 INSTRUCTION_SOURCE = (
-    "# tst: hash-request\n// tst: slash-request\n-- tst: sql-request\n"
-    "/* tst: block-request */\n<!-- tst: html-request -->\n"
-    'value = "# tst: quoted-not-request"\ncode() # tst: trailing-not-request\n'
+    "# REVIEW: hash-request\n// review: slash-request\n-- review: sql-request\n"
+    "/* review: block-request */\n<!-- review: html-request -->\n"
+    'value = "# review: quoted-not-request"\ncode() # review: trailing-not-request\n'
+    "# tst: default-implementation-decoy\n"
 )
-PR_INSTRUCTION = "# tst: pr-review-request\n"
+PR_INSTRUCTION = "# Review: pr-review-request\n# tst: default-pr-decoy\n"
 RECOVERY_CASES = {
     "retry": ("retry", "conversation"),
     "resume": ("resume", "conversation"),
@@ -174,7 +178,7 @@ else:
         path = Path.cwd()/filename
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
-        if filename == "src/delivery.txt" and "# tst: hash-request" in text:
+        if filename == "src/delivery.txt" and text.startswith(INSTRUCTION_SOURCE):
             for base in ("refs/remotes/origin/main", "refs/remotes/origin/release"):
                 changed = subprocess.run([REAL_GIT,"diff","--name-only",base,"--"],
                     capture_output=True, text=True, check=True).stdout.splitlines()
@@ -468,11 +472,23 @@ class Service(http.server.BaseHTTPRequestHandler):
                 "src/delivery.txt:1" in prompt and "hash-request" in prompt,
                 "real scanner's located instruction did not reach the model",
             )
+            require(
+                all(
+                    text not in prompt
+                    for text in (
+                        "default-implementation-decoy",
+                        "quoted-not-request",
+                        "trailing-not-request",
+                    )
+                ),
+                "implementation scanner included a non-instruction",
+            )
         if kind == "review" and fixture["scenario"] == "changes":
             require(
                 "src/pr-review.txt:1" in prompt and "pr-review-request" in prompt,
                 "PR scanner's distinct located instruction did not reach the model",
             )
+            require("default-pr-decoy" not in prompt, "PR scanner used default marker")
         if kind == "implement" or (
             kind == "review" and fixture["scenario"] in {"changes", "validation"}
         ):
@@ -1756,7 +1772,8 @@ def run(
                 path = fake / name
                 path.write_text(
                     f"#!{fixture_python()}\nBASE={server.base_url!r}\n"
-                    "REAL_GIT='/usr/bin/git'\n" + PEER
+                    "REAL_GIT='/usr/bin/git'\n"
+                    f"INSTRUCTION_SOURCE={INSTRUCTION_SOURCE!r}\n" + PEER
                 )
                 path.chmod(0o755)
             driver.env.update(
@@ -1797,6 +1814,8 @@ def run(
                     "trunk_branch": "main",
                     "pr_base_branch": "release",
                 }
+                if scenario == "changes":
+                    inputs["comment_marker"] = COMMENT_MARKER
                 name = example + "_" + scenario
                 state = _run_scenario(driver, reference, name, inputs, scenario, server)
                 if server.fixture["recovery"] is not None:

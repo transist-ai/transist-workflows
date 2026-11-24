@@ -328,7 +328,11 @@ uses tokenization to exclude multiline string literals. Missing/unreadable files
 symlinks, escaped paths and overflow fail without emitting partial context.
 The synthetic delivery repository includes an unchanged 32 MiB tracked text file;
 its instruction source differs from the local trunk and PR base in the changes
-scenario. Fake remote fetches retain real local `origin/main` and `origin/release`
+scenario. Both examples' changes scenarios override the root `comment_marker`
+with a padded `review:` value. The fixture requires mixed-case matches with
+source locations in both implementation and PR review model contexts, and
+rejects `tst:` decoys in those contexts. Fake remote fetches retain real local
+`origin/main` and `origin/release`
 tracking refs; the PR uses the distinct, advanced `release` base and a separate
 located PR-review instruction authored on the feature branch that must reach the
 review agent. A release-only baseline file distinguishes base selection without

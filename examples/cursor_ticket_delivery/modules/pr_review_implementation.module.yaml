@@ -27,19 +27,19 @@ steps:
 
       Context sections are ordered: reviewer ledger, Jira issue, attachment
       projection, instruction comments, actionable reviews, validation report,
-      operator feedback, validation-override feedback. Private labels are opaque;
-      document names below describe roles, not workspace or persistent file paths.
+      operator feedback, validation-override feedback. Identify sections by
+      their order and contents; staging labels are not workspace filenames.
 
       If the PR is already merged, do not change the repository. Explain that no
       action is needed, but still include the required per-comment response array
       below; use clarification rather than claiming new code changes.
 
-      Use `review_comments_actionable.json` for requests and current PR state.
+      Use the actionable reviews section for requests and current PR state.
       Prior notes remain in runtime inspection; do not search the workspace for
       operational files or expired staging paths.
-      `review_comments_actionable.json` contains unresolved
-      review-thread comments plus fresh PR conversation comments, already
-      filtered of prior Transist replies and slash commands.
+      That section contains unresolved review-thread comments plus fresh PR
+      conversation comments, already filtered of prior Transist replies and
+      slash commands.
 
       Read the run-specific reviewer-context JSONL for operator remediation
       requests (schema
@@ -90,7 +90,7 @@ steps:
       - `## Review Replies`
         Include exactly one fenced `json` array after this heading. Each object
         must contain:
-        - `comment_id`: the exact comment id from `review_comments_actionable.json`
+        - `comment_id`: the exact comment id from the actionable reviews section
         - `outcome`: exactly one of `addressed`, `clarification`, or `rejected`
         - `reply`: a non-empty string with a short 1-2 sentence explanation
         Include exactly one result for EVERY actionable comment, including those
@@ -108,13 +108,13 @@ steps:
       - `## Verification`
       - `## Risks`
 
-      If `tst_comments.md` contains inline reviewer comments, treat each one
-      as an authoritative, located revision request alongside PR review
-      comments. Apply the change at the indicated `file:line` and remove the
-      `tst:` comment line itself from the working tree after addressing it.
-      Do not leave stale `tst:` markers in the code. Do not include
-      `tst:`-addressed items in the `## Review Replies` array; they are
-      addressed by code changes, not by written replies.
+      Treat each entry in the scanned instruction comments context as an
+      authoritative, located revision request alongside PR review comments.
+      Apply the change at the indicated source `file:line`, then remove the
+      corresponding instruction comment from that source file. Do not remove
+      unrelated comments or treat them as requests. Do not include scanned
+      source instructions in the `## Review Replies` array; they are addressed
+      by code changes, not by written replies.
 
       Do not create git commits, do not push branches, do not open pull
       requests, and do not rewrite git history. Leave repository changes only

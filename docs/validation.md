@@ -2,6 +2,24 @@
 
 ## Acceptance status
 
+The optional `comment_marker` delivery revisions pin `git.cli@0.2.0`. On macOS
+ARM64, verified runtime 0.1.1 and the updated local plugin checkout passed all
+four unbound and representative-bound source checks. Both delivery explanation
+snapshots were regenerated from two identical CLI reports per workflow.
+
+Separate installed runs passed all nine Cursor and six hotfix scenarios with
+zero skips. Each changes scenario verifies that the custom marker reaches both
+the implementation and PR-review scanners: located custom-marker comments reach
+the fake model, while default-marker decoys do not. Other scenarios omit the
+optional input. Cursor exercises Jira-fetch and reply-publication recovery on
+both reply surfaces; hotfix exercises Jira-fetch recovery.
+
+The local plugin working tree was based on
+`0c3faa13600caac74d92a9c8d8a509238b42807e`; the installed `git.cli@0.2.0` payload
+inventory SHA-256 was `213d15e625130b13792236cd2f117ac5a2da4cf4af195ff7bce6e090bb498bc7`.
+These results cover that local payload and the selected macOS fixtures, not the
+unfiltered installed matrix, native Linux, or live provider readiness.
+
 **Experimental source-only publication — narrowed gate approved 2026-11-11.**
 The owner explicitly accepted deferring full installed acceptance after review of
 the remaining failures. Required final-candidate checks are static, all root and

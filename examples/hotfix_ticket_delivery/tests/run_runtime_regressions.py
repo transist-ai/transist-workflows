@@ -409,10 +409,25 @@ class Fixture:
                 )
                 step.clear()
                 step.update(id=model_id, **replacement)
-            elif step["id"] == "scan_tst_comments":
+        scan = yaml.safe_load(
+            (example / "modules/implementation_scan.module.yaml").read_text()
+        )
+        for step in scan["steps"]:
+            if step["id"] == "fetch_base":
+                # This isolated lifecycle fixture has no Git remote or network.
+                step.clear()
+                step.update(id="fetch_base", control="control.noop")
+            elif step["id"] in {
+                "scan_from_trunk",
+                "scan_from_pr_base",
+            }:
+                scan_id = step["id"]
                 output = step["with"]["output_file"]
                 step.clear()
-                step.update(id="scan_tst_comments", **shell_action("scan", [output]))
+                step.update(id=scan_id, **shell_action("scan", [output]))
+        (modules / "implementation_scan.module.yaml").write_text(
+            yaml.safe_dump(scan, sort_keys=False)
+        )
         (modules / "implementation_iteration.module.yaml").write_text(
             yaml.safe_dump(iteration, sort_keys=False)
         )
@@ -498,11 +513,12 @@ class Fixture:
             "workflows", "explain", "--path", str(path), "--inputs-file", str(inputs)
         )
         self.cli("workflows", "install", "--path", str(path), "--approve")
+        workflow_ref = f"{flow['id']}@{flow['version']}"
         readiness = json.loads(
             self.cli(
                 "workflows",
                 "check",
-                "hotfix_runtime_regression@0.1.0",
+                workflow_ref,
                 "--inputs-file",
                 str(inputs),
                 "--live",
@@ -512,7 +528,7 @@ class Fixture:
         self.cli(
             "workflows",
             "run",
-            "hotfix_runtime_regression@0.1.0",
+            workflow_ref,
             "--run-ref",
             "regression",
             "--inputs-file",

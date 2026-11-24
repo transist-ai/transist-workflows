@@ -30,23 +30,164 @@ from installed_delivery import (  # noqa: E402
 class InstalledCheckerTests(unittest.TestCase):
     """Every finite inventory entry runs; missing prerequisites never skip."""
 
+    def test_recovery_boundaries_follow_each_authored_delivery_graph(self) -> None:
+        """Hotfix lacks reply publication; Cursor must prove both boundaries."""
+        jira = [{"stage": "jira_fetch"}]
+        both = jira + [{"stage": "reply"}]
+        delivery.require_recovery_boundaries("hotfix_ticket_delivery", jira)
+        delivery.require_recovery_boundaries("cursor_ticket_delivery", both)
+        for workflow, stages in (
+            ("cursor_ticket_delivery", jira),
+            ("hotfix_ticket_delivery", []),
+            ("unknown", jira),
+        ):
+            with self.subTest(workflow=workflow), self.assertRaises(checker.CheckError):
+                delivery.require_recovery_boundaries(workflow, stages)
+
+    def test_delivery_baseline_and_pr_base_fixture(self) -> None:
+        """The changed instruction source and PR base exclude an oversized baseline."""
+        marker = delivery.COMMENT_MARKER.strip().casefold()
+        with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
+            target = Path(temporary) / "target"
+            with patch.object(delivery, "git") as git:
+                delivery.workspace(target, cursor=False)
+            self.assertNotIn(marker, (target / "src/delivery.txt").read_text())
+            self.assertEqual(
+                (target / "src/unchanged-large.txt").stat().st_size, 32 * 1024 * 1024
+            )
+            self.assertNotEqual(marker, "tst:")
+            self.assertTrue(INSTRUCTION_SOURCE.casefold().startswith(f"# {marker}"))
+            self.assertTrue(
+                delivery.PR_INSTRUCTION.casefold().startswith(f"# {marker}")
+            )
+            self.assertFalse((target / "src/pr-review.txt").exists())
+            self.assertEqual(
+                (target / "src/release-only.txt").read_text(),
+                "Synthetic release baseline\n",
+            )
+            git.assert_any_call(target, "init", "-q", "-b", "main")
+            git.assert_any_call(target, "add", "-A")
+            git.assert_any_call(
+                target, "update-ref", "refs/remotes/origin/main", "refs/heads/main"
+            )
+            git.assert_any_call(
+                target,
+                "update-ref",
+                "refs/remotes/origin/release",
+                "refs/heads/release",
+            )
+            handler = object.__new__(Service)
+            handler.server = Mock(
+                fixture=fixture_state("hotfix_ticket_delivery", "changes")
+            )
+            pr = json.loads(handler.github(["pr", "view"])["stdout"])
+            self.assertEqual(pr["baseRefName"], "release")
+
     def test_changes_preserves_requests_until_the_authored_review_scan(self) -> None:
         """Only the post-review iteration can require the real scanner's context."""
+        for workflow in ("cursor_ticket_delivery", "hotfix_ticket_delivery"):
+            with self.subTest(workflow=workflow):
+                handler = object.__new__(Service)
+                fixture = fixture_state(workflow, "changes")
+                handler.server = Mock(fixture=fixture)
+                prompt = '{"root_run_id":"fixture-review-scan"}'
+                first = handler.agent({"args": ["-p", prompt]})
+                self.assertTrue(
+                    first["write_files"]["src/delivery.txt"].startswith(
+                        INSTRUCTION_SOURCE
+                    )
+                )
+                with self.assertRaisesRegex(
+                    checker.CheckError, "real scanner's located"
+                ):
+                    handler.agent({"args": ["-p", prompt]})
+                located = prompt + "\nsrc/delivery.txt:1: hash-request"
+                fixture["agents"]["implement"] = 1
+                with self.assertRaisesRegex(checker.CheckError, "non-instruction"):
+                    handler.agent(
+                        {"args": ["-p", located + "\ndefault-implementation-decoy"]}
+                    )
+                fixture["agents"]["implement"] = 1
+                second = handler.agent({"args": ["-p", located]})
+                self.assertNotIn(
+                    "hash-request", second["write_files"]["src/delivery.txt"]
+                )
+                self.assertEqual(
+                    second["write_files"]["src/pr-review.txt"], delivery.PR_INSTRUCTION
+                )
+
+    def test_pr_review_agent_requires_distinct_located_instruction(self) -> None:
+        """Both review agents must receive the real PR scan's distinct request."""
+        for workflow in ("cursor_ticket_delivery", "hotfix_ticket_delivery"):
+            with self.subTest(workflow=workflow):
+                handler = object.__new__(Service)
+                handler.server = Mock(fixture=fixture_state(workflow, "changes"))
+                prompt = (
+                    '{"root_run_id":"fixture"}\nAddress unresolved pull request\n'
+                    + delivery.REQUEST
+                    + "\n"
+                    + delivery.DIFF_HEADER
+                    + " R_thread"
+                )
+                with self.assertRaisesRegex(checker.CheckError, "PR scanner"):
+                    handler.agent({"args": ["-p", prompt]})
+                located = prompt + "\nsrc/pr-review.txt:1: pr-review-request"
+                with self.assertRaisesRegex(checker.CheckError, "used default marker"):
+                    handler.agent({"args": ["-p", located + "\ndefault-pr-decoy"]})
+                result = handler.agent({"args": ["-p", located]})
+                self.assertEqual(
+                    result["write_files"]["src/pr-review.txt"],
+                    "PR review request addressed\n",
+                )
+
+    def test_fake_pr_creation_requires_the_actual_base(self) -> None:
+        """The peer rejects creation against trunk or an implicit provider default."""
         handler = object.__new__(Service)
-        fixture = fixture_state("cursor_ticket_delivery", "changes")
-        handler.server = Mock(fixture=fixture)
-        prompt = '{"root_run_id":"fixture-review-scan"}'
-        first = handler.agent({"args": ["-p", prompt]})
-        self.assertTrue(
-            first["write_files"]["src/delivery.txt"].startswith(INSTRUCTION_SOURCE)
+        handler.server = Mock(
+            fixture=fixture_state("hotfix_ticket_delivery", "changes")
         )
-        with self.assertRaisesRegex(checker.CheckError, "real scanner's located"):
-            handler.agent({"args": ["-p", prompt]})
-        fixture["agents"]["implement"] = 1
-        second = handler.agent(
-            {"args": ["-p", prompt + "\nsrc/delivery.txt:1: hash-request"]}
-        )
-        self.assertNotIn("tst:", second["write_files"]["src/delivery.txt"])
+        for args in (
+            ["pr", "create", "--body", "body"],
+            ["pr", "create", "--body", "body", "--base", "main"],
+        ):
+            with self.assertRaisesRegex(checker.CheckError, "wrong base"):
+                handler.github(args)
+        result = handler.github(["pr", "create", "--body", "body", "--base", "release"])
+        self.assertEqual(result["stdout"], delivery.URL + "\n")
+
+    def test_fake_fetch_updates_real_local_tracking_ref(self) -> None:
+        """Exercise the actual peer with local Git objects and mocked transport."""
+        source = Path(__file__).resolve().parents[1]
+        head = delivery.git(source, "rev-parse", "HEAD").strip()
+        with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
+            repo = Path(temporary)
+            delivery.git(repo, "init", "-q")
+            (repo / ".git/objects/info/alternates").write_text(
+                str(source / ".git/objects") + "\n"
+            )
+            delivery.git(repo, "update-ref", "refs/heads/release", head)
+            args = [
+                "git",
+                "fetch",
+                "--no-tags",
+                "--no-recurse-submodules",
+                "--",
+                "origin",
+                "+refs/heads/release:refs/remotes/origin/release",
+            ]
+            with contextlib.chdir(repo), patch.object(sys, "argv", args), patch(
+                "urllib.request.urlopen", return_value=io.BytesIO(b"{}")
+            ), contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaises(SystemExit) as stopped:
+                    exec(
+                        delivery.PEER,
+                        {"REAL_GIT": "/usr/bin/git", "BASE": "http://fake"},
+                    )
+            self.assertEqual(stopped.exception.code, 0)
+            self.assertEqual(
+                delivery.git(repo, "rev-parse", "refs/remotes/origin/release").strip(),
+                head,
+            )
 
     def test_recovery_eligibility_does_not_ignore_cleanup_or_missing_proof(
         self,

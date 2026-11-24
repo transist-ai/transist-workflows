@@ -48,13 +48,18 @@ REQUEST = "  Preserve this pre-gate request.\nExact caf\u00e9 scope.  "
 REPLY = "The requested boundary is retained; this is a synthetic clarification."
 URL = "https://github.com/fixture/fixture/pull/7"
 DIFF_HEADER = "@@ -1 +1 @@"
+# The changes scenario overrides the workflow default. Mixed case and padding
+# exercise scanner normalization; default-marker decoys must not reach the model.
+COMMENT_MARKER = "  review:  "
 # Keep the synthetic located requests until the first request-changes gate has
 # caused the real scanner to publish them for the next implementation iteration.
 INSTRUCTION_SOURCE = (
-    "# tst: hash-request\n// tst: slash-request\n-- tst: sql-request\n"
-    "/* tst: block-request */\n<!-- tst: html-request -->\n"
-    'value = "# tst: quoted-not-request"\ncode() # tst: trailing-not-request\n'
+    "# REVIEW: hash-request\n// review: slash-request\n-- review: sql-request\n"
+    "/* review: block-request */\n<!-- review: html-request -->\n"
+    'value = "# review: quoted-not-request"\ncode() # review: trailing-not-request\n'
+    "# tst: default-implementation-decoy\n"
 )
+PR_INSTRUCTION = "# Review: pr-review-request\n# tst: default-pr-decoy\n"
 RECOVERY_CASES = {
     "retry": ("retry", "conversation"),
     "resume": ("resume", "conversation"),
@@ -102,6 +107,21 @@ def required_scenarios(example: str) -> tuple[str, ...]:
     )
 
 
+def require_recovery_boundaries(example: str, interruptions: list[dict]) -> None:
+    """Require each response-loss boundary actually authored by the delivery flow."""
+    require(
+        example in {"cursor_ticket_delivery", "hotfix_ticket_delivery"},
+        "unknown delivery workflow",
+    )
+    expected = ["jira_fetch"]
+    if example == "cursor_ticket_delivery":
+        expected.append("reply")
+    require(
+        [item["stage"] for item in interruptions] == expected,
+        "required response-loss recovery boundaries were not exercised",
+    )
+
+
 # Only external executables are fake. They communicate through one loopback peer;
 # production APP handlers, schema checks, parsing and subprocess ownership run.
 PEER = r"""
@@ -118,6 +138,13 @@ def call(kind, extra=None):
 if name == "git":
     if args and args[0] in {"fetch","push","pull","ls-remote"}:
         result = {"stdout":"","stderr":"","code":0}
+        if args[0] == "fetch":
+            assert args[-2] == "origin"
+            source, destination = args[-1].removeprefix("+").split(":")
+            assert source in {"refs/heads/main", "refs/heads/release"}
+            expected = source.replace("refs/heads/", "refs/remotes/origin/", 1)
+            assert destination == expected
+            subprocess.run([REAL_GIT,"update-ref",destination,source],check=True)
     else:
         completed = subprocess.run([REAL_GIT, *args], capture_output=True, text=True)
         result = {"stdout":completed.stdout,"stderr":completed.stderr,
@@ -128,8 +155,9 @@ if name == "git":
             capture_output=True, text=True, check=True).stdout
         extra["tracked"] = staged.split("\0")
     remote = call("git", extra)
-    if args[:1] == ["pull"] and args[-1:] == ["main"] and remote.get("merged"):
-        completed = subprocess.run([REAL_GIT,"merge","--ff-only","PROJ-123"],
+    if args[:1] == ["pull"] and args[-1:] == ["release"] and remote.get("merged"):
+        merge_args = [REAL_GIT,"merge","--no-edit","-X","theirs","PROJ-123"]
+        completed = subprocess.run(merge_args,
             capture_output=True, text=True)
         result = {"stdout":completed.stdout,"stderr":completed.stderr,
                   "code":completed.returncode}
@@ -150,6 +178,15 @@ else:
         path = Path.cwd()/filename
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
+        if filename == "src/delivery.txt" and text.startswith(INSTRUCTION_SOURCE):
+            for base in ("refs/remotes/origin/main", "refs/remotes/origin/release"):
+                changed = subprocess.run([REAL_GIT,"diff","--name-only",base,"--"],
+                    capture_output=True, text=True, check=True).stdout.splitlines()
+                assert "src/delivery.txt" in changed
+                assert "src/unchanged-large.txt" not in changed
+                assert ("src/release-only.txt" in changed) == base.endswith("/main")
+            subprocess.run([REAL_GIT,"merge-base","--is-ancestor",
+                "refs/remotes/origin/release","HEAD"],check=True)
     answer = result.pop("answer")
     if name == "gh":
         state = Path(os.environ["COPILOT_SESSION_STATE_DIR"])/"fixture"
@@ -435,6 +472,23 @@ class Service(http.server.BaseHTTPRequestHandler):
                 "src/delivery.txt:1" in prompt and "hash-request" in prompt,
                 "real scanner's located instruction did not reach the model",
             )
+            require(
+                all(
+                    text not in prompt
+                    for text in (
+                        "default-implementation-decoy",
+                        "quoted-not-request",
+                        "trailing-not-request",
+                    )
+                ),
+                "implementation scanner included a non-instruction",
+            )
+        if kind == "review" and fixture["scenario"] == "changes":
+            require(
+                "src/pr-review.txt:1" in prompt and "pr-review-request" in prompt,
+                "PR scanner's distinct located instruction did not reach the model",
+            )
+            require("default-pr-decoy" not in prompt, "PR scanner used default marker")
         if kind == "implement" or (
             kind == "review" and fixture["scenario"] in {"changes", "validation"}
         ):
@@ -451,6 +505,15 @@ class Service(http.server.BaseHTTPRequestHandler):
                 result["write_files"]["src/delivery.txt"] = (
                     INSTRUCTION_SOURCE + result["write_files"]["src/delivery.txt"]
                 )
+            if kind == "implement" and fixture["scenario"] == "changes" and count == 2:
+                result["write_files"]["src/pr-review.txt"] = PR_INSTRUCTION
+            if kind == "review" and fixture["scenario"] == "changes":
+                result["write_files"][
+                    "src/pr-review.txt"
+                ] = "PR review request addressed\n"
+            fixture["expected_delivery_source"] = result["write_files"][
+                "src/delivery.txt"
+            ]
         return result
 
     def github(self, args: list[str]) -> dict:
@@ -462,7 +525,7 @@ class Service(http.server.BaseHTTPRequestHandler):
             "state": "MERGED" if fixture["merged"] else "OPEN",
             "url": URL,
             "title": "[PROJ-123] Synthetic delivery",
-            "baseRefName": "main",
+            "baseRefName": "release",
             "headRefName": "PROJ-123",
             "isDraft": False,
             "mergeable": "MERGEABLE",
@@ -497,6 +560,10 @@ class Service(http.server.BaseHTTPRequestHandler):
                 "reviews": [],
             }
         elif args[:2] == ["pr", "create"]:
+            require(
+                "--base" in args and args[args.index("--base") + 1] == "release",
+                "PR creation used the wrong base",
+            )
             fixture["pr_body"] = args[args.index("--body") + 1]
             fixture["pr_created_draft"] = "--draft" in args
             # Simulate reviewers making a draft ready before first inspection.
@@ -911,13 +978,26 @@ def workspace(path: Path, cursor: bool) -> None:
     )
     (path / "README.md").write_text("# Synthetic delivery target\n")
     (path / "src").mkdir()
-    (path / "src/delivery.txt").write_text(INSTRUCTION_SOURCE)
+    (path / "src/delivery.txt").write_text("Synthetic baseline source\n")
+    # A tracked, unchanged text file larger than the scanner's per-file limit.
+    with (path / "src/unchanged-large.txt").open("wb") as large:
+        for _ in range(512):
+            large.write((b"x" * 1023 + b"\n") * 64)
     if cursor:
         (path / "openspec").mkdir()
         (path / "openspec/config.yaml").write_text("schema: spec-driven\n")
     git(path, "add", "-A")
     git(path, "commit", "-qm", "Synthetic baseline")
+    git(path, "branch", "release", "refs/heads/main")
+    git(path, "switch", "-q", "release")
+    (path / "src/release-only.txt").write_text("Synthetic release baseline\n")
+    git(path, "add", "src/release-only.txt")
+    git(path, "commit", "-qm", "Synthetic release baseline")
+    git(path, "switch", "-q", "main")
     git(path, "remote", "add", "origin", "https://github.com/fixture/fixture.git")
+    # Network fetch is faked; PR base resolution still needs a real local ref.
+    git(path, "update-ref", "refs/remotes/origin/main", "refs/heads/main")
+    git(path, "update-ref", "refs/remotes/origin/release", "refs/heads/release")
 
 
 def fixture_state(example: str, scenario: str) -> dict:
@@ -957,7 +1037,14 @@ def fixture_state(example: str, scenario: str) -> dict:
 
 def inspect_workspace(target: Path, fixture: dict) -> list[str]:
     """Inspect native Git stages and workspace files against finite deliverables."""
-    allowed = {".gitignore", "README.md", "src/delivery.txt"}
+    allowed = {
+        ".gitignore",
+        "README.md",
+        "src/delivery.txt",
+        "src/pr-review.txt",
+        "src/release-only.txt",
+        "src/unchanged-large.txt",
+    }
     if fixture["workflow"] == "cursor_ticket_delivery":
         allowed.add("openspec/config.yaml")
         allowed.update(
@@ -1685,7 +1772,8 @@ def run(
                 path = fake / name
                 path.write_text(
                     f"#!{fixture_python()}\nBASE={server.base_url!r}\n"
-                    "REAL_GIT='/usr/bin/git'\n" + PEER
+                    "REAL_GIT='/usr/bin/git'\n"
+                    f"INSTRUCTION_SOURCE={INSTRUCTION_SOURCE!r}\n" + PEER
                 )
                 path.chmod(0o755)
             driver.env.update(
@@ -1724,18 +1812,15 @@ def run(
                     "jira_ticket_id": "PROJ-123",
                     "jira_site_url": server.base_url,
                     "trunk_branch": "main",
+                    "pr_base_branch": "release",
                 }
+                if scenario == "changes":
+                    inputs["comment_marker"] = COMMENT_MARKER
                 name = example + "_" + scenario
                 state = _run_scenario(driver, reference, name, inputs, scenario, server)
                 if server.fixture["recovery"] is not None:
-                    require(
-                        [
-                            item["stage"]
-                            for item in server.fixture["recovery_interruptions"]
-                        ]
-                        == ["jira_fetch", "reply"],
-                        "both required response-loss recovery boundaries "
-                        "were not exercised",
+                    require_recovery_boundaries(
+                        example, server.fixture["recovery_interruptions"]
                     )
                 expected = (
                     "failed"
@@ -1761,6 +1846,11 @@ def run(
                     require(
                         (target / "src/delivery.txt").is_file(),
                         "simulated merge lost the actual committed source deliverable",
+                    )
+                    require(
+                        git(target, "show", "refs/heads/release:src/delivery.txt")
+                        == server.fixture["expected_delivery_source"],
+                        "simulated merge did not retain the deliverable on the PR base",
                     )
                 require(not server.fixture["errors"], "fake provider assertions failed")
                 header, *records = inspect_documents(

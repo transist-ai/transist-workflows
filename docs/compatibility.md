@@ -1,7 +1,7 @@
 # Public compatibility baseline
 
-Use the published **Transist 0.1.1** runtime and matching admin binary, and a clean
-checkout of the public plugin release. Verify downloaded archives with the
+Use the published **Transist 0.1.1** runtime and matching admin binary, and exact
+plugin releases matching each workflow's pins. Verify downloaded archives with the
 release's checksums and Minisign procedure before selecting explicit executables.
 Version output alone is not provenance.
 
@@ -31,12 +31,16 @@ matching pair and does not undo external effects.
 
 The following pins describe the current checked-in examples, not future releases:
 
-| Example | Plugins, each at `0.1.0` |
+| Example | Exact plugin pins |
 | --- | --- |
-| `edge_fault_advisory` | `shell`, `openai.compatible` |
-| `ai_agent_plugins_canary` | `anthropic`, `codex.cli`, `cursor.cli`, `github.copilot.cli`, `ollama.cli`, `openai.compatible`, `opencode.cli` |
-| `cursor_ticket_delivery` | `cursor.cli`, `git.cli`, `github.cli`, `jira.rest`, `openspec`, `shell` |
-| `hotfix_ticket_delivery` | `git.cli`, `github.cli`, `github.copilot.cli`, `jira.rest`, `shell` |
+| `edge_fault_advisory` | `shell`, `openai.compatible` at `0.1.0` |
+| `ai_agent_plugins_canary` | `anthropic`, `codex.cli`, `cursor.cli`, `github.copilot.cli`, `ollama.cli`, `openai.compatible`, `opencode.cli` at `0.1.0` |
+| `cursor_ticket_delivery` | `git.cli` at `0.2.0`; `cursor.cli`, `github.cli`, `jira.rest`, `openspec`, `shell` at `0.1.0` |
+| `hotfix_ticket_delivery` | `git.cli` at `0.2.0`; `github.cli`, `github.copilot.cli`, `jira.rest`, `shell` at `0.1.0` |
+
+The `0.1.0` plugin release above does not provide `git.cli@0.2.0`. Delivery
+validation requires the separately updated exact package and new evidence; the
+historical plugin-release receipt does not establish its availability.
 
 The canary's `openai.compatible` defaults to `https://openrouter.ai/api/v1`
 and also allows `https://api.openai.com/v1`. Set `OPENAI_COMPATIBLE_API_KEY`

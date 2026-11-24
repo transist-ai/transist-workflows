@@ -315,12 +315,28 @@ selected-example results remain recorded in Steps 9–11; current acceptance is 
 Delivery-owned `check_working_files.py` guards reject tracked or otherwise
 stageable legacy operational files before generation and commits. Managed
 documents live outside Git and require no exclusions. Guards never edit ignores.
+The delivery scans use `git.cli@0.2.0` changed-file scope: the freshly fetched
+effective PR base for implementation, or the managed PR base and configured
+remote for PR review. Separate shell plugin steps fetch only the declared trunk or
+explicitly authorized PR base; mismatches fail before fetch and scanning is offline.
+New feature branches start from that same effective base, not an unrelated trunk.
 The source scanner excludes operational files and its own output even when
-tracked. It streams files with limits of 8 MiB/file and 64 KiB/line, 4 KiB/comment
+tracked. It streams selected files with limits of 8 MiB/file and 64 KiB/line, 4 KiB/comment
 and 32 KiB/complete output. Leading explicit comment delimiters are required;
 quoted examples and trailing code comments are not instructions. Python source
 uses tokenization to exclude multiline string literals. Missing/unreadable files,
 symlinks, escaped paths and overflow fail without emitting partial context.
+The synthetic delivery repository includes an unchanged 32 MiB tracked text file;
+its instruction source differs from the local trunk and PR base in the changes
+scenario. Fake remote fetches retain real local `origin/main` and `origin/release`
+tracking refs; the PR uses the distinct, advanced `release` base and a separate
+located PR-review instruction authored on the feature branch that must reach the
+review agent. A release-only baseline file distinguishes base selection without
+adding unrelated trunk commits to the PR. Fake fetches update actual local
+tracking refs, and the simulated merge checks deliverable bytes on `release`.
+Linked worktrees need explicit policy grants for their external Git common
+directory, subject to runtime sandbox and protected-path limitations; otherwise
+use a standalone checkout.
 
 Both delivery cycles preserve the raw fetch/checkpoint in a root managed
 document. `github.cli/pr_prepare_review_context` projects exact requests and
@@ -336,12 +352,13 @@ decision identities and child scopes; only root initialization reads metadata.
 The delivery runners require success, changes, rejection, validation failure,
 retry/resume, independent same-ticket runs and actual fresh replay. They inspect
 committed documents and real Git indexes. An installed failure is a blocker,
-never a skip or a reduced passing matrix. Recovery fixtures withhold the initial
-fetch and selected accepted-reply response, publicly cancel the owning synthetic
-run, and recover only from the eligible canceled state in a fresh verified peer
-scope. Actual client EOF and exact-source, complete native teardown are required.
-Remote-marker reconciliation and GET-before-POST assertions still apply to both
-reply surfaces. Separate full-graph checks require authored failure cleanup to
+never a skip or a reduced passing matrix. Both recovery fixtures withhold the initial
+Jira fetch; Cursor additionally withholds selected accepted-reply responses on both
+reply surfaces. Hotfix has no reply publisher. Fixtures publicly cancel the owning
+synthetic run and recover only from the eligible canceled state in a fresh verified
+peer scope. Actual client EOF and exact-source, complete native teardown are
+required. Cursor's remote-marker reconciliation and GET-before-POST assertions
+apply to both reply surfaces. Separate full-graph checks require authored failure cleanup to
 run once and prevent retry/resume from redispatching primary work afterward.
 The two explanation reports and portable
 projections can be regenerated without execution with

@@ -1,6 +1,6 @@
 schema: transist.module.v1
 id: cursor_pr_review_changes_loop
-version: 0.1.0
+version: 0.1.1
 modules:
   review_implementation_loop: {path: pr_review_implementation.module.yaml}
 steps:
@@ -17,9 +17,14 @@ steps:
     with:
       command: python3
       args: [source://scripts/pr_review_replies.py, filter, --input-file, {$document: review_comments, access: read}, --output-file, {$document: review_comments_actionable, access: write}, --state-file, {$document: review_replies_state, access: read}, --pr-file, {$document: pr, access: read}]
+  - id: fetch_pr_scan_base
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/fetch_scan_base.py, --remote, "{{inputs.git_remote}}", --branch, "{{inputs.pr_base_branch}}", --fallback-branch, "{{inputs.trunk_branch}}", --pr-file, {$document: pr, access: read}]
   - id: scan_tst_comments
     uses: process:git.cli/scan_instruction_comments
-    with: {output_mode: compact, output_file: {$document: tst_comments, access: write}}
+    with: {output_mode: compact, scope: changed, pr_file: {$document: pr, access: read}, remote: "{{inputs.git_remote}}", output_file: {$document: tst_comments, access: write}}
   - id: review_implementation_loop
     module: {ref: review_implementation_loop, rerun_mode: fresh}
   - id: plan_review_responses

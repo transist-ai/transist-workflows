@@ -1,6 +1,8 @@
 schema: transist.module.v1
 id: cursor_implementation_iteration
-version: 0.1.0
+version: 0.1.1
+modules:
+  implementation_scan: {path: implementation_scan.module.yaml}
 inputs:
   stage_model: {type: string, required: true}
 outputs:
@@ -53,8 +55,7 @@ steps:
       then: [{ref: scan_tst_comments}]
       else: [{ref: export_reviewed_implementation}]
   - id: scan_tst_comments
-    uses: process:git.cli/scan_instruction_comments
-    with: {output_mode: compact, output_file: {$document: tst_comments, access: write}}
+    module: {ref: implementation_scan, rerun_mode: fresh}
   - id: export_reviewed_implementation
     uses: process:shell/exec
     with:

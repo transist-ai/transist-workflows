@@ -190,6 +190,49 @@ class PublicExamplesTests(unittest.TestCase):
         for name in ("cursor_ticket_delivery", "hotfix_ticket_delivery"):
             owner = ROOT / "examples" / name
             root = checker.load_yaml(owner / "workflow.yaml")
+            self.assertEqual(root["version"], "0.1.1")
+            self.assertEqual(root["plugins"]["git.cli"], "0.2.0")
+            root_steps = {step["id"]: step for step in root["steps"]}
+            self.assertEqual(
+                root_steps["create_branch"]["if"],
+                {
+                    "guard": 'inputs.pr_base_branch == ""',
+                    "then": [{"ref": "create_branch_from_trunk"}],
+                    "else": [{"ref": "create_branch_from_pr_base"}],
+                },
+            )
+            for action, base in (
+                ("create_branch_from_trunk", "trunk_branch"),
+                ("create_branch_from_pr_base", "pr_base_branch"),
+            ):
+                self.assertEqual(
+                    root_steps[action]["uses"], "process:git.cli/ensure_branch"
+                )
+                self.assertEqual(
+                    root_steps[action]["with"]["start_point"],
+                    "refs/remotes/{{inputs.git_remote}}/{{inputs." + base + "}}",
+                )
+            initial_fetch = root_steps["sync_trunk_before_branch"]["with"]["args"]
+            self.assertIn("{{inputs.pr_base_branch}}", initial_fetch)
+            self.assertIn("{{inputs.trunk_branch}}", initial_fetch)
+            self.assertEqual(
+                root_steps["open_pull_request"]["if"],
+                {
+                    "guard": 'inputs.pr_base_branch == ""',
+                    "then": [{"ref": "open_pull_request_on_trunk"}],
+                    "else": [{"ref": "open_pull_request_on_configured_base"}],
+                },
+            )
+            for action, base in (
+                ("open_pull_request_on_trunk", "trunk_branch"),
+                ("open_pull_request_on_configured_base", "pr_base_branch"),
+            ):
+                self.assertEqual(
+                    root_steps[action]["uses"], "process:github.cli/pr_create"
+                )
+                self.assertEqual(
+                    root_steps[action]["with"]["base"], "{{inputs." + base + "}}"
+                )
             self.assertEqual(root["steps"][0]["id"], "initialize_reviewer_context")
             self.assertEqual(root["steps"][1]["id"], "check_working_files")
             for path in [
@@ -198,7 +241,7 @@ class PublicExamplesTests(unittest.TestCase):
             ]:
                 doc = checker.load_yaml(path)
                 for index, step in enumerate(doc["steps"]):
-                    if step["id"] == "scan_tst_comments":
+                    if step.get("uses") == "process:git.cli/scan_instruction_comments":
                         self.assertEqual(
                             step["uses"], "process:git.cli/scan_instruction_comments"
                         )
@@ -206,6 +249,37 @@ class PublicExamplesTests(unittest.TestCase):
                             step["with"]["output_file"],
                             {"$document": "tst_comments", "access": "write"},
                         )
+                        self.assertEqual(step["with"]["scope"], "changed")
+                        if path.name == "implementation_scan.module.yaml":
+                            base = (
+                                "trunk_branch"
+                                if step["id"].endswith("from_trunk")
+                                else "pr_base_branch"
+                            )
+                            self.assertEqual(
+                                step["with"]["base_ref"],
+                                "refs/remotes/{{inputs.git_remote}}/{{inputs."
+                                + base
+                                + "}}",
+                            )
+                            self.assertNotIn("pr_file", step["with"])
+                        else:
+                            self.assertEqual(path.name, "pr_review_changes.module.yaml")
+                            fetch = doc["steps"][index - 1]
+                            self.assertEqual(fetch["id"], "fetch_pr_scan_base")
+                            self.assertEqual(fetch["uses"], "process:shell/exec")
+                            self.assertEqual(
+                                step["with"]["pr_file"],
+                                {"$document": "pr", "access": "read"},
+                            )
+                            self.assertEqual(
+                                step["with"]["remote"], "{{inputs.git_remote}}"
+                            )
+                            self.assertNotIn("base_ref", step["with"])
+                            self.assertIn(
+                                {"$document": "pr", "access": "read"},
+                                fetch["with"]["args"],
+                            )
                     if step.get("uses") == "process:git.cli/commit_worktree":
                         guard = doc["steps"][index - 1]
                         self.assertEqual(
@@ -269,6 +343,24 @@ class PublicExamplesTests(unittest.TestCase):
             owner / "modules/implementation_iteration.module.yaml"
         )
         steps = {step["id"]: step for step in iteration["steps"]}
+        self.assertEqual(
+            steps["scan_tst_comments"]["module"],
+            {"ref": "implementation_scan", "rerun_mode": "fresh"},
+        )
+        scan = checker.load_yaml(owner / "modules/implementation_scan.module.yaml")
+        scan_steps = {step["id"]: step for step in scan["steps"]}
+        self.assertEqual(
+            scan_steps["select_scan_base"]["if"],
+            {
+                "guard": 'inputs.pr_base_branch == ""',
+                "then": [{"ref": "scan_from_trunk"}],
+                "else": [{"ref": "scan_from_pr_base"}],
+            },
+        )
+        fetch = scan_steps["fetch_base"]
+        self.assertEqual(fetch["uses"], "process:shell/exec")
+        self.assertIn("{{inputs.pr_base_branch}}", fetch["with"]["args"])
+        self.assertIn("{{inputs.trunk_branch}}", fetch["with"]["args"])
         order = list(steps)
         self.assertLess(order.index(model_step), order.index("review_implementation"))
         self.assertLess(
@@ -331,8 +423,12 @@ class PublicExamplesTests(unittest.TestCase):
         self.assertEqual(sync["when"], ["success"])
         self.assertEqual(sync["uses"], "process:git.cli/sync_branch_from_pr")
         self.assertEqual(sync["with"]["pr_file"], {"$document": "pr", "access": "read"})
-        for name in ("checkout_trunk_branch", "delete_local_feature_branch"):
-            self.assertEqual(cleanup[name]["when"], ["success", "failed"])
+        self.assertEqual(
+            cleanup["checkout_trunk_branch"]["when"], ["success", "failed"]
+        )
+        self.assertEqual(
+            cleanup["delete_local_feature_branch"]["when"], ["success", "failed"]
+        )
         steps = [step["id"] for step in root["steps"]]
         self.assertLess(steps.index("open_pull_request"), steps.index("pr_review_loop"))
         self.assertLess(

@@ -7,7 +7,7 @@ revisions, then use explicit Git/GitHub steps to commit, push, review and merge.
 
 ## Deterministic explanation and expected result
 
-`hotfix_ticket_delivery@0.1.0` fetches the issue and an attachment tree, implements
+`hotfix_ticket_delivery@0.1.1` fetches the issue and an attachment tree, implements
 the fix with Copilot, waits at implementation review, commits/pushes, drafts an
 ordinary PR, and runs bounded PR review/remediation before squash merge and Jira
 completion. It does not generate an OpenSpec plan or claim automated validation
@@ -89,6 +89,26 @@ scanning; rejection stops without further model or scanner work. Each pass has a
 fresh child identity and inherits the published reviewer ledger and comments.
 The `max_iters: 5` and 16-hour bounds are unchanged. An explicit approval check
 after the loop prevents exhaustion from advancing to commit or PR creation.
+Both scans use `git.cli@0.2.0` changed-file scope. A separate `shell/exec` step
+fetches the configured remote's effective PR base into its tracking ref before
+branch creation and each implementation scan; new feature branches start at that
+ref. The effective base is `pr_base_branch` when set, otherwise `trunk_branch`.
+Before a PR scan it fetches that authorized base
+after checking it exactly matches the managed PR's actual base. Set that input
+explicitly when the PR targets a different branch. Invalid refs, unknown remotes,
+base mismatches and fetch failures stop the workflow. The scanner does not fetch;
+unchanged files are not scanned and selected files remain subject to its bounds.
+Existing feature branches are switched to, not reset or rebased. Inspect an
+existing branch's history against the intended PR base before using it; the
+workflow does not verify ancestry or distinguish unrelated commits. Success and
+failure cleanup force-delete the local feature branch, including a reused branch.
+PR creation uses that same effective base explicitly. Fetch helpers serialize
+against other helper fetches in the shared Git common directory; an abandoned
+process releases its advisory lock automatically.
+Linked worktrees have a Git common directory outside the workspace. They require
+explicit runtime policy grants permitting the necessary access to that exact common
+directory; if the sandbox cannot grant it, use a standalone checkout. The helper
+does not grant access or override protected-path restrictions.
 
 Implementation review snapshots notes, summary and PR-body revisions. A local
 export step reads those exact revisions with `reviewed_by: review_implementation`

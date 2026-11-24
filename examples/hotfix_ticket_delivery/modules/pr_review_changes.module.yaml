@@ -1,6 +1,6 @@
 schema: transist.module.v1
 id: hotfix_pr_review_changes
-version: 0.1.0
+version: 0.1.1
 profiles:
   author:
     uses: process:github.copilot.cli/exec_task
@@ -30,9 +30,14 @@ steps:
         - source://scripts/check_working_files.py
         - --repo-path
         - "{{inputs.repo_path}}"
+  - id: fetch_pr_scan_base
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/fetch_scan_base.py, --remote, "{{inputs.git_remote}}", --branch, "{{inputs.pr_base_branch}}", --fallback-branch, "{{inputs.trunk_branch}}", --pr-file, {$document: pr, access: read}]
   - id: scan_tst_comments
     uses: process:git.cli/scan_instruction_comments
-    with: {output_mode: compact, output_file: {$document: tst_comments, access: write}}
+    with: {output_mode: compact, scope: changed, pr_file: {$document: pr, access: read}, remote: "{{inputs.git_remote}}", output_file: {$document: tst_comments, access: write}}
   # No local gate; review changes are committed and pushed immediately.
   - id: implement_review_changes
     uses: process:github.copilot.cli/exec_task

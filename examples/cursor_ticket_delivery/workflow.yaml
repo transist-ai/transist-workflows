@@ -1,7 +1,7 @@
 schema: transist.flow.v1
 id: cursor_ticket_delivery
-version: 0.1.0
-plugins: {cursor.cli: 0.1.0, git.cli: 0.1.0, github.cli: 0.1.0, jira.rest: 0.1.0, openspec: 0.1.0, shell: 0.1.0}
+version: 0.1.1
+plugins: {cursor.cli: 0.1.0, git.cli: 0.2.0, github.cli: 0.1.0, jira.rest: 0.1.0, openspec: 0.1.0, shell: 0.1.0}
 modules:
   implementation_loop: {path: modules/implementation.module.yaml}
   plan_review: {path: modules/plan_review.module.yaml}
@@ -85,6 +85,7 @@ inputs:
   branch_name: {type: string, default: ""}
   git_remote: {type: string, default: origin}
   trunk_branch: {type: string, default: master}
+  pr_base_branch: {type: string, default: "", description: Authorized PR base; empty uses trunk_branch.}
   required_pr_approvals: {type: number, default: 1}
   in_progress_status: {type: string, default: IN PROGRESS}
   under_review_status: {type: string, default: Review}
@@ -150,11 +151,20 @@ steps:
   - id: sync_trunk_before_branch
     uses: process:shell/exec
     with:
-      command: bash
-      args: [source://scripts/sync_branch_before_feature_branch.sh, --repo-path, "{{inputs.repo_path}}", --remote, "{{inputs.git_remote}}", --branch, "{{inputs.trunk_branch}}"]
+      command: python3
+      args: [source://modules/scripts/fetch_scan_base.py, --remote, "{{inputs.git_remote}}", --branch, "{{inputs.pr_base_branch}}", --fallback-branch, "{{inputs.trunk_branch}}"]
   - id: create_branch
+    control: control.noop
+    if:
+      guard: 'inputs.pr_base_branch == ""'
+      then: [{ref: create_branch_from_trunk}]
+      else: [{ref: create_branch_from_pr_base}]
+  - id: create_branch_from_trunk
     uses: process:git.cli/ensure_branch
-    with: {output_mode: compact, name: "{{inputs.branch_name}}", default_name: "{{inputs.jira_ticket_id}}", start_point: "{{inputs.trunk_branch}}"}
+    with: {output_mode: compact, name: "{{inputs.branch_name}}", default_name: "{{inputs.jira_ticket_id}}", start_point: "refs/remotes/{{inputs.git_remote}}/{{inputs.trunk_branch}}"}
+  - id: create_branch_from_pr_base
+    uses: process:git.cli/ensure_branch
+    with: {output_mode: compact, name: "{{inputs.branch_name}}", default_name: "{{inputs.jira_ticket_id}}", start_point: "refs/remotes/{{inputs.git_remote}}/{{inputs.pr_base_branch}}"}
   - id: plan_loop
     module: {ref: plan_review}
   - id: implementation_loop
@@ -222,9 +232,27 @@ steps:
       command: bash
       args: [source://scripts/compose_pr_body_for_open.sh, --source-body-file, {$document: pr_body_prepared, access: read}, --output-body-file, {$document: pr_body_for_open, access: write}, --include-transist-pr-callout, "{{inputs.include_transist_pr_callout}}"]
   - id: open_pull_request
+    control: control.noop
+    if:
+      guard: 'inputs.pr_base_branch == ""'
+      then: [{ref: open_pull_request_on_trunk}]
+      else: [{ref: open_pull_request_on_configured_base}]
+  - id: open_pull_request_on_trunk
     uses: process:github.cli/pr_create
     with:
       output_mode: compact
+      base: "{{inputs.trunk_branch}}"
+      jira_issue_file: {$document: jira_issue, access: read}
+      jira_title_template: "[{key}] {summary}"
+      body_file: {$document: pr_body_for_open, access: read}
+      labels: [ai-assisted]
+      draft: true
+      output_file: {$document: pr, access: write}
+  - id: open_pull_request_on_configured_base
+    uses: process:github.cli/pr_create
+    with:
+      output_mode: compact
+      base: "{{inputs.pr_base_branch}}"
       jira_issue_file: {$document: jira_issue, access: read}
       jira_title_template: "[{key}] {summary}"
       body_file: {$document: pr_body_for_open, access: read}

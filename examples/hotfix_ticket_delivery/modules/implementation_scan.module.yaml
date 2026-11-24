@@ -1,0 +1,22 @@
+schema: transist.module.v1
+id: hotfix_implementation_scan
+version: 0.1.0
+steps:
+  - id: fetch_base
+    uses: process:shell/exec
+    with:
+      command: python3
+      args: [source://scripts/fetch_scan_base.py, --remote, "{{inputs.git_remote}}", --branch, "{{inputs.pr_base_branch}}", --fallback-branch, "{{inputs.trunk_branch}}"]
+  - id: select_scan_base
+    control: control.noop
+    if:
+      guard: 'inputs.pr_base_branch == ""'
+      then: [{ref: scan_from_trunk}]
+      else: [{ref: scan_from_pr_base}]
+  - id: scan_from_trunk
+    uses: process:git.cli/scan_instruction_comments
+    with: {output_mode: compact, scope: changed, base_ref: "refs/remotes/{{inputs.git_remote}}/{{inputs.trunk_branch}}", output_file: {$document: tst_comments, access: write}}
+  - id: scan_from_pr_base
+    uses: process:git.cli/scan_instruction_comments
+    with: {output_mode: compact, scope: changed, base_ref: "refs/remotes/{{inputs.git_remote}}/{{inputs.pr_base_branch}}", output_file: {$document: tst_comments, access: write}}
+  - {id: finish, control: control.finish}

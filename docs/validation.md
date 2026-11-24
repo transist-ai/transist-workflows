@@ -2,6 +2,19 @@
 
 ## Acceptance status
 
+The changed-file delivery revisions pin `git.cli@0.2.0`. On macOS ARM64, verified
+runtime 0.1.1 and the updated local plugin checkout passed all four unbound and
+representative-bound source checks. Both delivery explanation snapshots were
+regenerated from two identical CLI reports. Separately selected installed Cursor
+and hotfix fixture matrices passed with zero skips. Cursor exercises Jira-fetch
+and reply-publication recovery on both reply surfaces; hotfix exercises Jira-fetch
+recovery because its graph has no reply publisher. An initial hotfix attempt
+failed on an inapplicable reply-recovery assertion; its fixture was corrected and
+the complete hotfix selection passed on rerun. Static checks leave external state
+and secret values unevaluated and some inputs deferred to dispatch. These selected
+macOS results are not the unfiltered installed or native Linux matrix. Local
+unpublished plugin changes are not a released dependency.
+
 **Experimental source-only publication — narrowed gate approved 2026-11-11.**
 The owner explicitly accepted deferring full installed acceptance after review of
 the remaining failures. Required final-candidate checks are static, all root and

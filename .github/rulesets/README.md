@@ -1,8 +1,10 @@
 # GitHub protection snapshots
 
-These JSON files snapshot the live `transist-ai/transist-workflows` rulesets.
-They **do not apply themselves**: checking them in, merging a PR, or running CI
-does not configure GitHub. Live repository settings remain authoritative.
+These JSON files describe the intended post-cutover `transist-ai/transist-workflows`
+rulesets and selected repository settings. They **do not apply themselves**:
+checking them in, merging a PR, or running CI does not configure GitHub. Live
+repository settings and inherited rules remain authoritative and may differ
+until the separately authorized rollout is complete.
 Each ruleset contains only `name`, `target`, `enforcement`, `conditions`, `rules`
 and `bypass_actors`. API response IDs, timestamps and links are omitted; the
 required check's `integration_id` is retained because it binds the check to its
@@ -20,25 +22,47 @@ contain only the selected repository-level PATCH fields, not a ruleset wrapper.
   and the actual GitHub Actions **`Static checks`** status check, with strict
   up-to-date checking. There is no minimum approving-review count. A local check
   or a differently named job does not satisfy the required GitHub check.
-- `main-dco-signoff` separately targets literal `main` and requires a matching
-  `Signed-off-by:` line in the commit message. This checks DCO trailer presence,
-  not every contributor's sign-off, authorship, or cryptographic signatures.
-  Contributors must still sign off every commit under [CONTRIBUTING](../../CONTRIBUTING.md).
+- The `main-dco-signoff` snapshot targets literal `main` and is intended to be
+  disabled after cutover. Until an administrator disables the live ruleset, its
+  commit-message requirement remains in force. The new `main-dco` workflow checks
+  new `main` commits after push; it is not a required PR check or merge block.
+  See [CONTRIBUTING](../../CONTRIBUTING.md) for the merger's DCO responsibility.
 - Squash is the only final PR merge method. Rebase PR updates locally; squash
   only at final integration. Repository settings disable merge commits, rebase
-  merges and auto-merge, allow branch updates, retain merged branches, and require
-  web commit sign-off. The final squash title uses `COMMIT_OR_PR_TITLE` and its
+  merges and auto-merge, allow branch updates, retain merged branches, and intend
+  to disable web commit sign-off after cutover. The final squash title uses `COMMIT_OR_PR_TITLE` and its
   body uses `COMMIT_MESSAGES`; review the final message and DCO trailers.
 - `v-tag-protection` makes existing `v*` tags immutable: no updates, force updates,
   or deletion. Tag creation is not blocked by this ruleset.
-- All four rulesets are active with empty `bypass_actors`: no configured bypass,
-  including for maintainers.
+- The other three ruleset snapshots remain active, all with empty `bypass_actors`:
+  no configured bypass, including for maintainers.
+
+## Staged DCO rollout
+
+1. An administrator rechecks repository visibility, settings, and effective rules,
+   including inherited rules and required checks, saves rollback settings, and
+   obtains approval. Stop on unexplained drift.
+2. Merge the rollout PR while the existing `main-dco-signoff` rule remains active;
+   preserve genuine sign-offs in the final squash message.
+3. Confirm a green `main-dco` run on that merge SHA before separately disabling
+   the live `main-dco-signoff` ruleset. Do not require `main-dco` on PRs or
+   release gates. Set `web_commit_signoff_required` to false only as an authorized
+   administrative change; preserve all unrelated protections.
+4. Verify effective live settings and, on the first approved post-cutover PR,
+   confirm unsigned feature commits pass `Static checks`, then verify the signed
+   squash commit passes `main-dco`. Do not rewrite pre-rollout history or tags.
+
+If `main-dco` fails, stop further merges and notify a maintainer with the failing
+SHA and run URL. Do not force-push `main`; a later signed commit does not repair
+an earlier unsigned commit.
 
 ## Refresh from GitHub (read-only API calls)
 
 From the repository root, with authenticated `gh`, export the live objects.
 Resolve each name uniquely to its current ID rather than checking API IDs into
-the snapshot. This writes local files only; review the resulting diff.
+the snapshot. This writes local files only; review the resulting diff. During
+rollout it will replace intended final values with live values, which may still
+show the old protections; do not mistake that refresh for cutover.
 
 ```sh
 set -eu

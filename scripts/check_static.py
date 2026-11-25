@@ -46,13 +46,22 @@ def inspect_source(root: Path, paths: list[Path]) -> None:
 
 def commands(paths: list[Path], staging: Path) -> list[list[str]]:
     """Return the finite static-tool commands; never execute an authored program."""
-    python = [str(p) for p in paths if p.suffix == ".py"]
+    # This shared upstream test must remain byte-identical across public repos.
+    python = [
+        str(p)
+        for p in paths
+        if p.suffix == ".py" and p.as_posix() != "scripts/ci/test_main_dco.py"
+    ]
     shell = [str(p) for p in paths if p.suffix == ".sh"]
     return [
         [sys.executable, "-m", "black", "--check", *python],
         [sys.executable, "-m", "flake8", "--max-line-length=88", *python],
         *([["shellcheck", *shell]] if shell else []),
-        ["actionlint", ".github/workflows/validate.yml"],
+        [
+            "actionlint",
+            ".github/workflows/validate.yml",
+            ".github/workflows/main-dco.yml",
+        ],
         ["gitleaks", "dir", "--redact", "--no-banner", str(staging)],
     ]
 

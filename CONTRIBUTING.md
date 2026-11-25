@@ -38,8 +38,9 @@ submission is reviewed by maintainers; acceptance is not guaranteed.
   effects, credential bindings, exact endpoint customization and failure cleanup.
 - Run the unit tests, Python formatting/lint checks, runtime source validator,
   and publication gate described in [scripts/README.md](scripts/README.md).
-   Automatic CI runs static checks only; execute tests locally as described in
-   [validation](docs/validation.md). Never inject credentials into CI.
+   PR CI runs static checks only; execute tests locally as described in
+   [validation](docs/validation.md). A separate `main-dco` check runs after pushes
+   to `main`. Never inject credentials into CI.
 - Before recreating the repository, copy only the publication gate's explicit
   passing inclusion list into a new directory, initialize Git there, and rerun
   the same checks. Preserve the old checkout as the rollback source until review.
@@ -49,7 +50,17 @@ submission is reviewed by maintainers; acceptance is not guaranteed.
 
 ## License and sign-off
 
-Contributions are submitted under [Apache-2.0](LICENSE) with Developer
-Certificate of Origin (DCO) sign-off. You must have the right to submit your
-contribution under that license. Add `Signed-off-by:` to each commit using
-`git commit -s`. See <https://developercertificate.org/>.
+Contributions are submitted under [Apache-2.0](LICENSE); you must have the
+right to submit them under that license. After the staged cutover described in
+[GitHub protection snapshots](.github/rulesets/README.md), individual feature
+branch commits do not need DCO sign-offs. Until then, existing GitHub rules and
+settings remain in force.
+
+For every final squash commit on `main`, the human merger must review the final
+message and preserve genuine `Signed-off-by: Name <email>` trailers. If none is
+present, the merger must add their own only if they can attest to the
+[Developer Certificate of Origin](https://developercertificate.org/). Never
+invent a sign-off or sign for someone else. This also applies to bot PRs.
+`main-dco` checks new commits after they land; it is not a pre-merge block and
+checks trailer format and presence, not identity or rights. If it fails, stop
+further merges and notify a maintainer with the failing SHA and run URL.

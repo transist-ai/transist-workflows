@@ -31,7 +31,10 @@ class StaticTests(unittest.TestCase):
 
     def test_only_static_tools_and_exact_shell_paths(self) -> None:
         """No unittest, Go, plugin installer, runtime or helper is an entrypoint."""
-        commands = checker.commands([Path("a.py"), Path("scripts/a.sh")], Path("/tmp"))
+        commands = checker.commands(
+            [Path("a.py"), Path("scripts/ci/test_main_dco.py"), Path("scripts/a.sh")],
+            Path("/tmp"),
+        )
         self.assertEqual(
             [command[0] for command in commands],
             [sys.executable, sys.executable, "shellcheck", "actionlint", "gitleaks"],
@@ -39,6 +42,16 @@ class StaticTests(unittest.TestCase):
         self.assertEqual(commands[0][1:4], ["-m", "black", "--check"])
         self.assertEqual(commands[1][1:3], ["-m", "flake8"])
         self.assertEqual(commands[2], ["shellcheck", "scripts/a.sh"])
+        self.assertNotIn("scripts/ci/test_main_dco.py", commands[0])
+        self.assertNotIn("scripts/ci/test_main_dco.py", commands[1])
+        self.assertEqual(
+            commands[3],
+            [
+                "actionlint",
+                ".github/workflows/validate.yml",
+                ".github/workflows/main-dco.yml",
+            ],
+        )
         self.assertFalse(any("*" in argument for c in commands for argument in c))
 
     def test_missing_selected_root_fails(self) -> None:

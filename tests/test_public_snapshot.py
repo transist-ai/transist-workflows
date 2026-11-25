@@ -54,6 +54,7 @@ class SnapshotTests(unittest.TestCase):
             "docs/history/revised-workflow-authoring-step-11.md",
             "docs/history/revised-workflow-authoring-step-12.md",
             ".github/workflows/validate.yml",
+            ".github/workflows/main-dco.yml",
             "scripts/check.py",
             "tests/test_gate.py",
         ]

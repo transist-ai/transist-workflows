@@ -117,7 +117,8 @@ and execution are separate operations.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for tests, safety and DCO sign-off.
 [Validation tooling](scripts/README.md) documents offline checks and the
-current-content publication gate. Automatic CI is **static-only**: it does not run
-tests, build adapters, install plugins or invoke Transist. Full native validation
+current-content publication gate. PR CI is **static-only**: it does not run
+tests, build adapters, install plugins or invoke Transist. A separate `main-dco`
+check verifies new commits after pushes to `main`. Full native validation
 is a separate maintainer gate. Follow [publication](docs/publication.md) to export
 only approved source; never copy development history or local state.

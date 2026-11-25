@@ -154,6 +154,7 @@ def path_allowed(relative: PurePosixPath) -> bool:
         return True
     if display in {
         ".github/workflows/validate.yml",
+        ".github/workflows/main-dco.yml",
         ".github/pull_request_template.md",
         ".github/rulesets/linear-pr-branches.json",
         ".github/rulesets/main-branch-protection.json",
